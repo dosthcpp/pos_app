@@ -13,6 +13,15 @@ dependencies:
   cupertino_icons: ^0.1.3
   font_awesome_flutter: ^8.10.0
   image_picker: ^0.6.7+14
+  qr_flutter: ^3.2.0
+  google_maps_flutter: ^1.0.6
+  location: ^3.1.0
+  printing: ^3.7.1
+  path_provider: ^1.6.24
+  flutter_blue: ^0.7.3
+  blue_thermal_printer: ^1.1.1
+  image: ^2.1.19
+  tutorial_coach_mark: ^0.5.2
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +30,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/product/

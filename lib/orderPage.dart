@@ -1,57 +1,19 @@
 import 'package:flutter/material.dart';
 
 class OrderPage extends StatelessWidget {
+  final Function callback;
+
+  OrderPage(this.callback);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 10.0,
-          automaticallyImplyLeading: false,
-          leading: GestureDetector(
-            child: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-            ),
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          title: Transform(
-            transform: Matrix4.translationValues(-60.0, 0, 0),
-            child: Text(
-              "Order #1001",
-              style: TextStyle(
-                color: Colors.black,
-              ),
-            ),
-          ),
-          actions: [
-            ButtonTheme(
-              minWidth: 0,
-              height: 0,
-              child: MaterialButton(
-                materialTapTargetSize:
-                MaterialTapTargetSize.shrinkWrap,
-                child: Icon(
-                  Icons.more_vert,
-                  color: Colors.deepPurpleAccent,
-                ),
-                onPressed: () {},
-              ),
-            ),
-          ],
-        ),
-      ),
       body: Column(
         children: <Widget>[
           Stack(
             children: <Widget>[
               Container(
-                width: MediaQuery
-                    .of(context)
-                    .size
-                    .width,
+                width: MediaQuery.of(context).size.width,
                 height: 270.0,
                 decoration: BoxDecoration(
                     image: DecorationImage(
@@ -105,91 +67,88 @@ class OrderPage extends StatelessWidget {
                 ),
               ),
               Positioned(
-                  top: 140.0,
-                  child: Container(
-                    width: MediaQuery
-                        .of(context)
-                        .size
-                        .width,
-                    height: 110.0,
-                    color: Colors.white,
-                    child: Padding(
-                        padding: EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 20.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                top: 140.0,
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: 110.0,
+                  color: Colors.white,
+                  child: Padding(
+                    padding:
+                        EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Text(
+                              "Customer",
+                              style: TextStyle(
+                                color: Colors.black54,
+                              ),
+                            ),
+                            SizedBox(
+                              height: 25.0,
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: <Widget>[
-                                Text(
-                                  "Customer",
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                  ),
+                                Image.asset(
+                                  'assets/user.png',
+                                  width: 40.0,
                                 ),
                                 SizedBox(
-                                  height: 25.0,
+                                  width: 10.0,
                                 ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
-                                    Image.asset(
-                                      'assets/user.png',
-                                      width: 40.0,
-                                    ),
+                                    Text("Tobi Lutke"),
                                     SizedBox(
-                                      width: 10.0,
+                                      height: 5.0,
                                     ),
-                                    Column(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Text("Tobi Lutke"),
-                                        SizedBox(
-                                          height: 5.0,
-                                        ),
-                                        Text(
-                                          "Ottawa, Ontario",
-                                          style: TextStyle(
-                                            fontSize: 12.0,
-                                            color: Colors.black54,
-                                          ),
-                                        )
-                                      ],
+                                    Text(
+                                      "Ottawa, Ontario",
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: Colors.black54,
+                                      ),
                                     )
                                   ],
                                 )
                               ],
-                            ),
-                            ButtonTheme(
-                              padding: EdgeInsets.all(0),
-                              minWidth: 0,
-                              height: 0,
-                              child: MaterialButton(
-                                materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                                onPressed: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.deepPurpleAccent,
-                                        width: 1.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                          30.0)),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 5.5,
-                                    ),
-                                    child: Text("i"),
-                                  ),
-                                ),
-                              ),
                             )
                           ],
-                        )),
-                  )),
+                        ),
+                        ButtonTheme(
+                          padding: EdgeInsets.all(0),
+                          minWidth: 0,
+                          height: 0,
+                          child: MaterialButton(
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            onPressed: () {},
+                            child: Container(
+                              decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.deepPurpleAccent,
+                                    width: 1.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(30.0)),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 5.5,
+                                ),
+                                child: Text("i"),
+                              ),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           Expanded(
@@ -221,13 +180,31 @@ class OrderPage extends StatelessWidget {
                 ),
               ],
             ),
-          )
+          ),
+          SizedBox(
+            height: 10.0,
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: Container(
+              width: (MediaQuery.of(context).size.width / 3) - 30,
+              color: Colors.black12,
+              child: MaterialButton(
+                onPressed: callback,
+                child: Text(
+                  "Print receipt",
+                  style: TextStyle(
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
-
 
 class _ListItemInOrder extends StatelessWidget {
   final String imageUrl;
@@ -236,11 +213,12 @@ class _ListItemInOrder extends StatelessWidget {
   final int num;
   final double price;
 
-  _ListItemInOrder({@required this.imageUrl,
-    @required this.title,
-    @required this.num,
-    @required this.size,
-    @required this.price});
+  _ListItemInOrder(
+      {@required this.imageUrl,
+      @required this.title,
+      @required this.num,
+      @required this.size,
+      @required this.price});
 
   @override
   Widget build(BuildContext context) {

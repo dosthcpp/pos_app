@@ -3,6 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:pos_app/shippingAddress.dart';
 
 class AddCustomer extends StatefulWidget {
+  final Function callback;
+
+  AddCustomer({this.callback});
+
   @override
   _AddCustomerState createState() => _AddCustomerState();
 }
@@ -15,30 +19,6 @@ class _AddCustomerState extends State<AddCustomer> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 10.0,
-          automaticallyImplyLeading: false,
-          leading: GestureDetector(
-            child: Icon(
-              Icons.close,
-              color: Colors.purpleAccent,
-            ),
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          title: Transform(
-            transform: Matrix4.translationValues(-60.0, 0, 0),
-            child: Text(
-              "Add customer",
-              style: TextStyle(
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Column(
         children: [
           Container(
@@ -62,9 +42,6 @@ class _AddCustomerState extends State<AddCustomer> {
                     "Basic information",
                     style: TextStyle(
                         fontWeight: FontWeight.bold, color: Colors.black45),
-                  ),
-                  SizedBox(
-                    height: 25.0,
                   ),
                   TextField(
                     decoration: InputDecoration(
@@ -126,7 +103,10 @@ class _AddCustomerState extends State<AddCustomer> {
               children: [
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => AddShippingAddress()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AddShippingAddress()));
                   },
                   child: Padding(
                     padding: EdgeInsets.symmetric(

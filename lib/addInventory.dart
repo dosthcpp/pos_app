@@ -1,33 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:pos_app/main_page.dart';
 
-class AddInventory extends StatelessWidget {
+class AddInventory extends StatefulWidget {
+  final Function callback;
+
+  AddInventory({this.callback});
+
+  @override
+  _AddInventoryState createState() => _AddInventoryState();
+}
+
+class _AddInventoryState extends State<AddInventory> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 10.0,
-          automaticallyImplyLeading: false,
-          leading: GestureDetector(
-            child: Icon(
-              Icons.arrow_back,
-              color: Colors.purpleAccent,
-            ),
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          title: Transform(
-            transform: Matrix4.translationValues(-20.0, 0, 0),
-            child: Text(
-              "Stock existing inventory",
-              style: TextStyle(
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Padding(
         padding: EdgeInsets.symmetric(
           vertical: 20.0,
@@ -135,11 +121,10 @@ class AddInventory extends StatelessWidget {
                 height: 50.0,
                 width: MediaQuery.of(context).size.width - 30,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.black12,
-                  ),
-                  borderRadius: BorderRadius.circular(30.0)
-                ),
+                    border: Border.all(
+                      color: Colors.black12,
+                    ),
+                    borderRadius: BorderRadius.circular(30.0)),
               ),
             )
           ],

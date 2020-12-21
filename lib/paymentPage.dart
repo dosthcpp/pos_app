@@ -1,35 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pos_app/payment_result.dart';
+import 'package:pos_app/main_page.dart';
 
 class PaymentPage extends StatelessWidget {
+  final Function callback;
+  final price;
+
+  static final GlobalKey paymentButton = GlobalKey();
+
+
+  PaymentPage(this.callback, {this.price});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 10.0,
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            icon:Icon(Icons.arrow_back,
-            color: Colors.deepPurpleAccent,
-          ),
-            onPressed:() => Navigator.pop(context, false),
-          ),
-          title: Transform(
-            transform: Matrix4.translationValues(-60.0, 0, 0),
-            child: Text(
-              "Select payment",
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 17.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Padding(
         padding: EdgeInsets.symmetric(
           vertical: 20.0,
@@ -44,28 +26,55 @@ class PaymentPage extends StatelessWidget {
               ),
             ),
             Text(
-              "\$185.00",
-              style: TextStyle(
-                fontSize: 45.0
-              ),
+              "\$${price}0",
+              style: TextStyle(fontSize: 45.0),
             ),
             SizedBox(
               height: 20.0,
             ),
-            Row(
-              children: <Widget>[
-                _PaymentMethod(title: "Credit", imageUrl: 'assets/credit-card.png',),
-                SizedBox(width: 20.0,),
-                _PaymentMethod(title: "External terminal", imageUrl: 'assets/pos-terminal.png',),
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Container(
+                      key: paymentButton,
+                      child: _PaymentMethod(
+                        title: "Credit",
+                        imageUrl: 'assets/credit-card.png',
+                        callback: callback,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 20.0,
+                    ),
+                    _PaymentMethod(
+                      title: "External terminal",
+                      imageUrl: 'assets/pos-terminal.png',
+                      callback: callback,
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    _PaymentMethod(
+                      title: "Cash",
+                      imageUrl: 'assets/money.png',
+                      callback: callback,
+                    ),
+                    SizedBox(
+                      width: 20.0,
+                    ),
+                    _PaymentMethod(
+                      title: "Gift card",
+                      imageUrl: 'assets/gift-card.png',
+                      callback: callback,
+                    ),
+                  ],
+                ),
               ],
-            ),
-            Row(
-              children: <Widget>[
-                _PaymentMethod(title: "Cash", imageUrl: 'assets/money.png',),
-                SizedBox(width: 20.0,),
-                _PaymentMethod(title: "Gift card", imageUrl: 'assets/gift-card.png',),
-              ],
-            ),
+            )
           ],
         ),
       ),
@@ -76,13 +85,16 @@ class PaymentPage extends StatelessWidget {
 class _PaymentMethod extends StatelessWidget {
   final String title;
   final String imageUrl;
-  _PaymentMethod({@required this.title, @required this.imageUrl});
+  final Function callback;
+
+  _PaymentMethod({@required this.title, @required this.imageUrl, this.callback});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: 15.0),
       child: Container(
-        width: (MediaQuery.of(context).size.width - 40) / 2,
+        width: ((MediaQuery.of(context).size.width) / 3) / 2 - 25,
         height: 80.0,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -107,12 +119,9 @@ class _PaymentMethod extends StatelessWidget {
               Text(title),
             ],
           ),
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentResult()));
-          },
+          onPressed: callback,
         ),
       ),
     );
   }
 }
-

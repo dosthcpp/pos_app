@@ -2,6 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class AddProduct extends StatefulWidget {
+  final Function callback;
+
+  AddProduct({this.callback});
+
   @override
   _AddProductState createState() => _AddProductState();
 }
@@ -12,33 +16,10 @@ class _AddProductState extends State<AddProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 10.0,
-          automaticallyImplyLeading: false,
-          leading: GestureDetector(
-            child: Icon(
-              Icons.close,
-              color: Colors.purpleAccent,
-            ),
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          title: Transform(
-            transform: Matrix4.translationValues(-60.0, 0, 0),
-            child: Text(
-              "Add product",
-              style: TextStyle(
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Padding(
         padding: EdgeInsets.symmetric(
           vertical: 20.0,
+          horizontal: 10.0,
         ),
         child: Center(
           child: Column(
@@ -74,24 +55,19 @@ class _AddProductState extends State<AddProduct> {
               SizedBox(
                 height: 20.0,
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Track inventory"),
-                    CupertinoSwitch(
-                      value: _willTrack,
-                      onChanged: (value) {
-                        setState(() {
-                          _willTrack = value;
-                        });
-                      },
-                    )
-                  ],
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Track inventory"),
+                  CupertinoSwitch(
+                    value: _willTrack,
+                    onChanged: (value) {
+                      setState(() {
+                        _willTrack = value;
+                      });
+                    },
+                  )
+                ],
               ),
               Visibility(
                 visible: _willTrack,
