@@ -1,162 +1,184 @@
 import 'package:flutter/material.dart';
+import 'package:pos_app/main.dart' show orderProvider, OrderProvider;
+import 'package:pos_app/main_page.dart';
+import 'package:provider/provider.dart';
 
 class OrderPage extends StatelessWidget {
   final Function callback;
+  final int orderForRenderIdx;
 
-  OrderPage(this.callback);
+  OrderPage(this.callback, {this.orderForRenderIdx});
+
+  _renderTime() {
+    final _date = orderProvider.orders?.length == 0
+        ? DateTime.now()
+        : orderProvider.orders.elementAt(orderForRenderIdx).date;
+    if (_date != null) {
+      final hour = _date.hour > 12 ? _date.hour - 12 : _date.hour;
+      final hourString = hour < 10 ? "0$hour" : hour;
+      final minute = _date.minute < 10 ? "0${_date.minute}" : _date.minute;
+
+      return "${_date.difference(DateTime.now()).inDays == 0 ? "Today" : _date.toLocal().toString().split(" ")[0].split("-").join(".")} at $hourString:$minute${_date.hour < 13 ? "AM" : "PM"}";
+    } else {
+      return "";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: <Widget>[
-          Stack(
-            children: <Widget>[
-              Container(
-                width: MediaQuery.of(context).size.width,
-                height: 270.0,
-                decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: ExactAssetImage('assets/background.jpg'),
-                      fit: BoxFit.cover,
-                    ),
-                    border: Border.all(
-                      color: Colors.black12,
-                    )),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: 10.0,
-                    horizontal: 15.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text("Today at 3:43pm"),
-                      Text(
-                        "\$209.05",
-                        style: TextStyle(fontSize: 40.0),
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        final order = provider?.orders?.length == 0
+            ? Order(() {})
+            : provider?.orders?.elementAt(orderForRenderIdx);
+        return Scaffold(
+          body: Column(
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    width: MediaQuery.of(context).size.width,
+                    height: 270.0,
+                    decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: ExactAssetImage('assets/background.jpg'),
+                          fit: BoxFit.cover,
+                        ),
+                        border: Border.all(
+                          color: Colors.black12,
+                        )),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 10.0,
+                        horizontal: 15.0,
                       ),
-                      SizedBox(
-                        height: 10.0,
-                      ),
-                      Text("Sold by Ricardo Vazquez"),
-                      SizedBox(
-                        height: 10.0,
-                      ),
-                      Row(
-                        children: <Widget>[
-                          Container(
-                            width: 8.0,
-                            height: 8.0,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8.0),
-                              color: Colors.black45,
-                            ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_renderTime()),
+                          Text(
+                            "\$${order.totalPrice ?? 0}0",
+                            style: TextStyle(fontSize: 40.0),
                           ),
                           SizedBox(
-                            width: 6.0,
+                            height: 10.0,
                           ),
-                          Text(
-                            "Paid",
-                            style: TextStyle(color: Colors.black45),
+                          Text("Sold by Ricardo Vazquez"),
+                          SizedBox(
+                            height: 10.0,
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8.0,
+                                height: 8.0,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  color: Colors.black45,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 6.0,
+                              ),
+                              Text(
+                                "Paid",
+                                style: TextStyle(color: Colors.black45),
+                              )
+                            ],
                           )
                         ],
-                      )
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: 140.0,
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 110.0,
-                  color: Colors.white,
-                  child: Padding(
-                    padding:
+                  Positioned(
+                    top: 140.0,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width,
+                      height: 110.0,
+                      color: Colors.white,
+                      child: Padding(
+                        padding:
                         EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              "Customer",
-                              style: TextStyle(
-                                color: Colors.black54,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 25.0,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: <Widget>[
-                                Image.asset(
-                                  'assets/user.png',
-                                  width: 40.0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Customer",
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                  ),
                                 ),
                                 SizedBox(
-                                  width: 10.0,
+                                  height: 25.0,
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text("Tobi Lutke"),
-                                    SizedBox(
-                                      height: 5.0,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Image.asset(
+                                      'assets/user.png',
+                                      width: 40.0,
                                     ),
-                                    Text(
-                                      "Ottawa, Ontario",
-                                      style: TextStyle(
-                                        fontSize: 12.0,
-                                        color: Colors.black54,
-                                      ),
+                                    SizedBox(
+                                      width: 10.0,
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text("Tobi Lutke"),
+                                        SizedBox(
+                                          height: 5.0,
+                                        ),
+                                        Text(
+                                          "Ottawa, Ontario",
+                                          style: TextStyle(
+                                            fontSize: 12.0,
+                                            color: Colors.black54,
+                                          ),
+                                        )
+                                      ],
                                     )
                                   ],
                                 )
                               ],
+                            ),
+                            ButtonTheme(
+                              padding: EdgeInsets.all(0),
+                              minWidth: 0,
+                              height: 0,
+                              child: MaterialButton(
+                                materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                                onPressed: () {},
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.deepPurpleAccent,
+                                        width: 1.2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(30.0)),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 5.5,
+                                    ),
+                                    child: Text("i"),
+                                  ),
+                                ),
+                              ),
                             )
                           ],
                         ),
-                        ButtonTheme(
-                          padding: EdgeInsets.all(0),
-                          minWidth: 0,
-                          height: 0,
-                          child: MaterialButton(
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            onPressed: () {},
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.deepPurpleAccent,
-                                    width: 1.2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(30.0)),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 5.5,
-                                ),
-                                child: Text("i"),
-                              ),
-                            ),
-                          ),
-                        )
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          Expanded(
-            flex: 1,
-            child: ListView(
-              children: <Widget>[
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0, left: 20.0, bottom: 5.0),
+              Padding(
+                padding: EdgeInsets.only(top: 10.0, left: 20.0, bottom: 5.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
                     "Items",
                     style: TextStyle(
@@ -164,89 +186,88 @@ class OrderPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                _ListItemInOrder(
-                  title: 'Walnut Planter',
-                  size: 'Tall',
-                  imageUrl: 'assets/walnut planter.png',
-                  num: 3,
-                  price: 61.6,
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: order?.itemList?.length ?? 0,
+                  itemBuilder: (context, index) {
+                    final _order = order?.itemList?.elementAt(index);
+                    if (_order != null) {
+                      return _ListItemInOrder(
+                        title: _order?.title,
+                        size: '',
+                        image: _order.image,
+                        num: _order?.itemCount,
+                        price: _order?.price,
+                        totalPrice: _order.price * _order.itemCount,
+                      );
+                    }
+                    return CircularProgressIndicator();
+                  },
                 ),
-                _ListItemInOrder(
-                  title: 'Mug cup',
-                  size: 'Tall',
-                  imageUrl: 'assets/cup.jpeg',
-                  num: 1,
-                  price: 24.25,
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 10.0,
-          ),
-          Align(
-            alignment: Alignment.center,
-            child: Container(
-              width: (MediaQuery.of(context).size.width / 3) - 30,
-              color: Colors.black12,
-              child: MaterialButton(
-                onPressed: callback,
-                child: Text(
-                  "Print receipt",
-                  style: TextStyle(
-                    color: Colors.black54,
+              ),
+              SizedBox(
+                height: 10.0,
+              ),
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  width: (MediaQuery.of(context).size.width / 3) - 30,
+                  color: Colors.black12,
+                  child: MaterialButton(
+                    onPressed: callback,
+                    child: Text(
+                      "Print receipt",
+                      style: TextStyle(
+                        color: Colors.black54,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class _ListItemInOrder extends StatelessWidget {
-  final String imageUrl;
+  final ImageProvider image;
   final String title;
   final String size;
   final int num;
   final double price;
+  final double totalPrice;
 
   _ListItemInOrder(
-      {@required this.imageUrl,
+      {@required this.image,
       @required this.title,
-      @required this.num,
       @required this.size,
-      @required this.price});
+      @required this.num,
+      @required this.price,
+      @required this.totalPrice});
 
   @override
   Widget build(BuildContext context) {
-    double totalPrice = num * price;
     return Column(
-      children: <Widget>[
+      children: [
         Container(
             height: 100,
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 18.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
+                children: [
                   Row(
-                    children: <Widget>[
+                    children: [
                       Stack(
                         overflow: Overflow.visible,
-                        children: <Widget>[
+                        children: [
                           Container(
                             width: 80.0,
-                            decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: ExactAssetImage(imageUrl),
-                                  fit: BoxFit.cover,
-                                ),
-                                border: Border.all(
-                                  color: Colors.black12,
-                                )),
+                            child: Image(image: image),
                           ),
                           Positioned(
                             top: -9.0,
@@ -276,7 +297,7 @@ class _ListItemInOrder extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
+                          children: [
                             Text(
                               title,
                               style: TextStyle(
@@ -297,7 +318,7 @@ class _ListItemInOrder extends StatelessWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
+                    children: [
                       Text(
                         "\$$totalPrice",
                         style: TextStyle(

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:async';
 import 'dart:math';
@@ -11,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:pos_app/addCustomer.dart';
 import 'package:pos_app/addInventory.dart';
 import 'package:pos_app/addProduct.dart';
+import 'package:pos_app/main.dart';
 import 'package:pos_app/orderPage.dart';
 import 'package:pos_app/paymentPage.dart';
 import 'package:pos_app/payment_result.dart';
@@ -26,6 +28,9 @@ import 'package:pos_app/storePage/tips.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:provider/provider.dart';
 import 'package:tutorial_coach_mark/animated_focus_light.dart';
 import 'package:tutorial_coach_mark/custom_target_position.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -77,22 +82,28 @@ class MainPage extends StatefulWidget {
 }
 
 class MainPageState extends State<MainPage> {
-  static int index = 0;
-  int drawerIndex = 0;
-  int cur = 1;
-  int mainCur = 1;
-  double price = 46.0;
-  final itemLength = 20;
   bool searchMode = false;
-  bool willShowReceipt = false;
   bool isMainMenu = true;
 
+  int imageIdx = 0;
+  int rightPageIdx = 0;
+  int leftPageIdx = 0;
+  int orderTitleIdx = 0;
+
+  List<ImageProvider> providers = [];
+  String itemName = '';
   List<String> itemNames = [];
-  List<String> itemImages = [];
-  List<int> hashedIdx = [];
-  List<GlobalKey> keys = [];
+  TextEditingController _itemNameController = TextEditingController();
+  String itemPrice = '';
+  List<String> itemPrices = [];
+  TextEditingController _itemPriceController = TextEditingController();
+
+  int orderForRenderIdx = 0;
 
   final fn = FocusNode();
+
+  bool isCashPage = false;
+  double cashGet = 0.0;
 
   // final scr = GlobalKey();
 
@@ -109,29 +120,67 @@ class MainPageState extends State<MainPage> {
   BluetoothDevice _device;
   bool _connected = false;
   bool _pressed = false;
-  String pathImage;
 
   @override
   void initState() {
-    for (int i = 0; i < itemLength; ++i) {
-      itemNames.add('itemName$i');
-    }
-    for (int i = 0; i < itemLength; ++i) {
-      itemImages.add('assets/product/random$i.png');
-    }
-    for (int i = 0; i < itemLength; ++i) {
-      hashedIdx.add(i);
-    }
-    for (int i = 0; i < itemLength; ++i) {
-      keys.add(GlobalKey());
-    }
+    orderProvider.initDate();
+    _showDialog();
     initPlatformState();
     initTargets();
   }
 
+  _selectDate(help, initialDate) async {
+    DateTime picked = await showDatePicker(
+        context: context,
+        initialDate: initialDate,
+        // Refer step 1
+        firstDate: DateTime(2019),
+        lastDate: DateTime(2023),
+        initialEntryMode: DatePickerEntryMode.calendar,
+        locale: Locale('en'),
+        helpText: help,
+        cancelText: 'Cancel',
+        confirmText: 'OK',
+        builder: (context, child) {
+          return Theme(
+            data: ThemeData.light().copyWith(
+              primaryColor: Colors.black54,
+              accentColor: Colors.pinkAccent, //selection color
+            ),
+            child: child,
+          );
+        });
+    if (picked != null && picked != initialDate) {
+      return picked;
+    } else {
+      return initialDate;
+    }
+  }
+
+  _showDialog() async {
+    await Future.delayed(Duration(milliseconds: 50));
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('This is DEMO version'),
+            content: Text(
+                "Thank you for using our product.\nThis is the free trial period.\nPlease search for 'ONE POS' on Facebook!"),
+            actions: <Widget>[
+              FlatButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.pop(context, "OK");
+                },
+              ),
+            ],
+          );
+        });
+  }
+
   void showTutorial() {
     setState(() {
-      index = 0;
+      rightPageIdx = 0;
       isMainMenu = true;
     });
     tutorialCoachMark = TutorialCoachMark(context,
@@ -142,22 +191,22 @@ class MainPageState extends State<MainPage> {
         opacityShadow: 0.8, onFinish: () {
       _printReceipt();
       setState(() {
-        index = 0;
+        rightPageIdx = 0;
         isMainMenu = true;
       });
     }, onClickTarget: (target) {
       if (target.keyTarget == subTotalButton?.currentWidget?.key) {
         setState(() {
-          index = 19;
+          rightPageIdx = 19;
           isMainMenu = false;
         });
       } else if (target.keyTarget == paymentButton?.currentWidget?.key) {
         setState(() {
-          index = 20;
+          rightPageIdx = 20;
         });
       }
     }, onClickSkip: () {
-      print("skip");
+      // ...
     })
       ..show();
   }
@@ -446,7 +495,7 @@ class MainPageState extends State<MainPage> {
   void _testPrint() async {
     bluetooth.isConnected.then((isConnected) {
       if (isConnected) {
-        bluetooth.printCustom("GBAIN INNOVATION", 3, 1);
+        bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
         bluetooth.printNewLine();
         bluetooth.printCustom("RECEIPT", 3, 1);
         bluetooth.printLeftRight("Address:", "", 0);
@@ -493,7 +542,7 @@ class MainPageState extends State<MainPage> {
     bluetooth.isConnected.then(
       (isConnected) {
         if (isConnected) {
-          bluetooth.printCustom("GBAIN INNOVATION", 3, 1);
+          bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
           bluetooth.printNewLine();
           bluetooth.printCustom("RECEIPT", 3, 1);
           bluetooth.printLeftRight("Address:", "", 0);
@@ -501,16 +550,16 @@ class MainPageState extends State<MainPage> {
               DateTime.now().toString().split(' ')[1].split('.')[0], 1);
           bluetooth.printCustom("----------------------------", 1, 1);
           bluetooth.printLeftRight("Item name / PPU /", "# / Total price", 1);
-          _CheckoutPage.listItem.forEach((el) {
+          orderProvider.itemList.forEach((el) {
             bluetooth.printLeftRight(
                 "${el.title} \$${el.price}", "1 \$${el.price}", 1);
           });
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Subtotal", "\$$price", 1);
-          bluetooth.printLeftRight("Net Amount", "\$$price", 1);
-          bluetooth.printLeftRight("Tax", "\$${price / 10}", 1);
+          bluetooth.printLeftRight("Subtotal", "\$${orderProvider.price}", 1);
+          bluetooth.printLeftRight("Net Amount", "\$${orderProvider.price}", 1);
+          bluetooth.printLeftRight("Tax", "\$${orderProvider.price / 10}", 1);
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Total", "\$$price", 1);
+          bluetooth.printLeftRight("Total", "\$${orderProvider.price}", 1);
           bluetooth.printCustom("----------------------------", 1, 1);
           bluetooth.printLeftRight("Promotion", "\$20.0", 1);
           bluetooth.printCustom("----------------------------", 1, 1);
@@ -520,7 +569,8 @@ class MainPageState extends State<MainPage> {
           bluetooth.printCustom("20201120112005123", 1, 2);
           bluetooth.printLeftRight("Affiliate No. :", "3230", 1);
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Membership Credit", "\$$price", 1);
+          bluetooth.printLeftRight(
+              "Membership Credit", "\$${orderProvider.price}", 1);
           bluetooth.printLeftRight("Membership Card", "*********6912", 1);
           bluetooth.printCustom("Approval No : 577145", 1, 1);
           bluetooth.printCustom("Balance: \$0.00", 1, 1);
@@ -543,7 +593,7 @@ class MainPageState extends State<MainPage> {
   void _printReceiptOnOrderPage() async {
     bluetooth.isConnected.then((isConnected) {
       if (isConnected) {
-        bluetooth.printCustom("GBAIN INNOVATION", 3, 1);
+        bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
         bluetooth.printNewLine();
         bluetooth.printCustom("RECEIPT", 3, 1);
         bluetooth.printLeftRight("Address:", "", 0);
@@ -605,7 +655,7 @@ class MainPageState extends State<MainPage> {
   }
 
   String renderTitle() {
-    switch (index) {
+    switch (rightPageIdx) {
       case 3:
         return "Stock Existing Inventory";
       case 4:
@@ -629,7 +679,7 @@ class MainPageState extends State<MainPage> {
       case 13:
         return "Support";
       case 14:
-        return "Get Gabin Mobile";
+        return "Get Gavin Mobile";
       case 15:
         return "Connect POS printer";
       case 16:
@@ -637,7 +687,7 @@ class MainPageState extends State<MainPage> {
       case 17:
         return "Purchase pos printer";
       case 18:
-        return "Order #1001";
+        return "Order #${orderTitleIdx + 1001}";
       case 19:
         return "Select Payment";
       case 20:
@@ -647,849 +697,979 @@ class MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Scaffold(
-                drawer: Drawer(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      SizedBox(
-                        height: 150.0,
-                        child: DrawerHeader(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: 10,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Administrator',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 18.0),
-                                ),
-                                SizedBox(
-                                  height: 10.0,
-                                ),
-                                Text(
-                                  "POS 1",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 16.0),
-                                ),
-                                SizedBox(
-                                  height: 10.0,
-                                ),
-                                Text(
-                                  "Gabin",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 16.0),
-                                )
-                              ],
-                            ),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.purple,
+    return ChangeNotifierProvider<OrderProvider>.value(
+      value: orderProvider,
+      child: WillPopScope(
+        onWillPop: () async => false,
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  appBar: PreferredSize(
+                    preferredSize: Size.fromHeight(40.0),
+                    child: AppBar(
+                      automaticallyImplyLeading: false,
+                      title: Container(
+                        width: 150.0,
+                        child: Text(
+                          "All products",
+                          style: TextStyle(
+                            fontSize: 17.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
                       ),
-                      ListTile(
-                        title: MaterialButton(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/shopping-cart.png',
-                                  width: 20.0,
-                                ),
-                                SizedBox(
-                                  width: 20.0,
-                                ),
-                                Text(
-                                  "Purchase",
-                                ),
-                              ],
-                            ),
-                          ),
+                      actions: [
+                        TextButton(
                           onPressed: () {
                             setState(() {
-                              drawerIndex = 0;
+                              leftPageIdx = 1;
                             });
-                            Navigator.of(context).pop();
                           },
+                          child: Text("+ADD ITEM"),
                         ),
-                      ),
-                      ListTile(
-                        title: MaterialButton(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/receipt.png',
-                                  width: 20.0,
-                                ),
-                                SizedBox(
-                                  width: 20.0,
-                                ),
-                                Text(
-                                  "Receipt",
-                                ),
-                              ],
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              print("asdf");
-                            });
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      ),
-                      ListTile(
-                        title: MaterialButton(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/products.png',
-                                  width: 20.0,
-                                ),
-                                SizedBox(
-                                  width: 20.0,
-                                ),
-                                Text(
-                                  "Products",
-                                ),
-                              ],
-                            ),
-                          ),
-                          onPressed: () {},
-                        ),
-                      ),
-                      ListTile(
-                        title: MaterialButton(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/settings.png',
-                                  width: 20.0,
-                                ),
-                                SizedBox(
-                                  width: 20.0,
-                                ),
-                                Text(
-                                  "Settings",
-                                ),
-                              ],
-                            ),
-                          ),
-                          onPressed: () {},
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                appBar: PreferredSize(
-                  preferredSize: Size.fromHeight(40.0),
-                  child: AppBar(
-                    automaticallyImplyLeading: false,
-                    title: Container(
-                      width: 150.0,
-                      child: Text(
-                        "All products",
-                        style: TextStyle(
-                          fontSize: 17.0,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
+                      ],
+                      backgroundColor: Colors.white,
                     ),
-                    // title: Transform(
-                    //   transform: Matrix4.translationValues(-30, 0, 0),
-                    //   child: Row(
-                    //     children: [
-                    //       Builder(
-                    //         builder: (context) => MaterialButton(
-                    //           child: Icon(
-                    //             Icons.menu,
-                    //           ),
-                    //           onPressed: () {
-                    //             Scaffold.of(context).openDrawer();
-                    //           },
-                    //         ),
-                    //       ),
-                    //       drawerIndex == 0
-                    //           ?
-                    //           : Container()
-                    //     ],
-                    //   ),
-                    // ),
-                    backgroundColor: Colors.white,
                   ),
-                ),
-                body: CustomScrollView(
-                  key: productsGrid,
-                  slivers: [
-                    Container(
-                      child: SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          childAspectRatio: 1.0,
-                          mainAxisSpacing: 10.0,
-                          crossAxisSpacing: 10.0,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            return GestureDetector(
-                              child: Container(
-                                color: Colors.grey[200],
-                                width: 80,
-                                child: Center(
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Image.asset(
-                                      itemImages[index],
-                                    ),
+                  body: Stack(
+                    children: [
+                      Offstage(
+                        offstage: leftPageIdx != 0,
+                        child: TickerMode(
+                          enabled: leftPageIdx == 0,
+                          child: CustomScrollView(
+                            key: productsGrid,
+                            slivers: [
+                              Container(
+                                child: SliverGrid(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 5,
+                                    childAspectRatio: 1.0,
+                                    mainAxisSpacing: 10.0,
+                                    crossAxisSpacing: 10.0,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) {
+                                      return GestureDetector(
+                                        child: Container(
+                                          color: Colors.grey[200],
+                                          width: 80,
+                                          child: Center(
+                                            child: Align(
+                                              alignment: Alignment.center,
+                                              child: Image(
+                                                image: providers[index],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        onTap: () {
+                                          var _price =
+                                              double.parse(itemPrices[index]);
+                                          orderProvider.addList(
+                                            ItemList(
+                                              title: itemNames[index],
+                                              image: providers[index],
+                                              price: _price,
+                                              itemCount: 1,
+                                            ),
+                                            _price,
+                                          );
+                                        },
+                                      );
+                                    },
+                                    childCount: itemNames.length,
                                   ),
                                 ),
                               ),
-                              onTap: () {
-                                var rng = Random();
-                                var _price =
-                                    50.toDouble() + rng.nextInt(150).toDouble();
-                                setState(
-                                  () {
-                                    _CheckoutPage.listItem.add(
-                                      _ListItem(
-                                        imageUrl: itemImages[index],
-                                        title: itemNames[index],
-                                        price: _price,
-                                      ),
-                                    );
-                                    price += _price;
-
-                                    itemNames.removeWhere(
-                                      (el) => (int.parse(
-                                              el.substring(8, el.length)) ==
-                                          hashedIdx[index]),
-                                    );
-                                    itemImages.removeWhere((el) =>
-                                        int.parse(el.split('/')[2].substring(
-                                            6, el.split('/')[2].length - 4)) ==
-                                        hashedIdx[index]);
-                                    hashedIdx.removeWhere((el) => el == index);
-                                  },
-                                );
-                              },
-                            );
-                          },
-                          childCount: itemNames.length,
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                )
-                // bottomNavigationBar: BottomNavigationBar(),
-                ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Scaffold(
-              resizeToAvoidBottomPadding: false,
-              appBar: PreferredSize(
-                preferredSize: Size.fromHeight(40.0),
-                child: AppBar(
-                  backgroundColor: Colors.white,
-                  elevation: 10.0,
-                  automaticallyImplyLeading: false,
-                  leading: searchMode
-                      ? GestureDetector(
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: Colors.deepPurpleAccent,
-                          ),
-                          onTap: () {
-                            setState(() {
-                              searchMode = false;
-                            });
-                          },
-                        )
-                      : null,
-                  actions: searchMode
-                      ? null
-                      : [
-                          index == 0
-                              ? SizedBox(
-                                  width: 30.0,
-                                  height: 40.0,
-                                  child: PopupMenuButton(
-                                    onSelected: (value) {
-                                      switch (value) {
-                                        case 1:
-                                          setState(() {
-                                            index = 3;
-                                            isMainMenu = false;
-                                          });
-                                          break;
-                                        case 2:
-                                          setState(() {
-                                            index = 4;
-                                            isMainMenu = false;
-                                          });
-                                          break;
-                                        case 3:
-                                          setState(() {
-                                            index = 5;
-                                            isMainMenu = false;
-                                          });
-                                          break;
-                                        default:
-                                          break;
-                                      }
-                                    },
-                                    icon: Icon(
-                                      Icons.add,
-                                      color: Colors.purpleAccent,
+                      Offstage(
+                        offstage: leftPageIdx != 1,
+                        child: TickerMode(
+                          enabled: leftPageIdx == 1,
+                          child: Container(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Add Item",
+                                    style: TextStyle(
+                                      fontSize: 18.0,
                                     ),
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem(
-                                        value: 0,
+                                  ),
+                                  SizedBox(
+                                    height: 10.0,
+                                  ),
+                                  _AddItemField(
+                                    "Item name",
+                                    callback: (name) {
+                                      itemName = name;
+                                    },
+                                    controller: _itemNameController,
+                                  ),
+                                  SizedBox(
+                                    height: 10.0,
+                                  ),
+                                  _AddItemField(
+                                    "Price",
+                                    callback: (price) {
+                                      itemPrice = price;
+                                    },
+                                    controller: _itemPriceController,
+                                  ),
+                                  SizedBox(
+                                    height: 10.0,
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20.0),
+                                    ),
+                                    child: MaterialButton(
+                                      padding: EdgeInsets.all(10.0),
+                                      child: !providers
+                                              .asMap()
+                                              .containsKey(imageIdx)
+                                          ? Image.asset(
+                                              'assets/cloud-computing.png',
+                                              width: 280.0,
+                                            )
+                                          : Image(
+                                              image: providers[imageIdx],
+                                              width: 280.0,
+                                            ),
+                                      onPressed: () async {
+                                        FilePickerResult result =
+                                            await FilePicker.platform
+                                                .pickFiles();
+
+                                        if (result != null) {
+                                          String filePath =
+                                              result.files.single.path;
+                                          var _cmpressed_image;
+                                          _cmpressed_image =
+                                              await FlutterImageCompress
+                                                  .compressWithFile(filePath,
+                                                      format:
+                                                          CompressFormat.jpeg,
+                                                      quality: 70);
+                                          setState(() {
+                                            providers.add(
+                                                MemoryImage(_cmpressed_image));
+                                          });
+                                        } else {
+                                          // User canceled the picker
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 300.0,
+                                    child: Material(
+                                      elevation: 5.0,
+                                      borderRadius: BorderRadius.circular(30.0),
+                                      color: Color(0xff01A0C7),
+                                      child: MaterialButton(
+                                        minWidth:
+                                            MediaQuery.of(context).size.width,
+                                        padding: EdgeInsets.fromLTRB(
+                                            20.0, 15.0, 20.0, 15.0),
+                                        onPressed: () {
+                                          if (imageIdx == 5) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    'Alert!',
+                                                  ),
+                                                  content: Text(
+                                                    "No more items can be added. Please contact customer service.",
+                                                  ),
+                                                  actions: [
+                                                    FlatButton(
+                                                      child: Text('OK'),
+                                                      onPressed: () {
+                                                        leftPageIdx = 0;
+                                                        Navigator.pop(
+                                                          context,
+                                                          "OK",
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          } else if (orderProvider.itemList
+                                                  .where((_item) => _item.title
+                                                      .contains(itemName))
+                                                  .toList()
+                                                  .length !=
+                                              0) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    'Alert!',
+                                                  ),
+                                                  content: Text(
+                                                    "Item name duplicates. Please use another name.",
+                                                  ),
+                                                  actions: [
+                                                    FlatButton(
+                                                      child: Text('OK'),
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                          context,
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          } else if (itemName != '' &&
+                                              itemName.length != 0 &&
+                                              itemPrice != '' &&
+                                              itemPrice.length != 0 &&
+                                              providers
+                                                  .asMap()
+                                                  .containsKey(imageIdx)) {
+                                            setState(() {
+                                              itemNames.add(itemName);
+                                              itemPrices.add(itemPrice);
+                                              itemName = '';
+                                              _itemNameController.clear();
+                                              itemPrice = '';
+                                              _itemPriceController.clear();
+                                              leftPageIdx = 0;
+                                              imageIdx++;
+                                            });
+                                          } else {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    'Alert!',
+                                                  ),
+                                                  content: Text(
+                                                    "You should fill the form.",
+                                                  ),
+                                                  actions: [
+                                                    FlatButton(
+                                                      child: Text('OK'),
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                            context, "OK");
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }
+                                        },
                                         child: Text(
-                                          "Actions",
+                                          "OK",
+                                          textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: Colors.black,
+                                            fontSize: 20.0,
+                                          ).copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                  // bottomNavigationBar: BottomNavigationBar(),
+                  ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                resizeToAvoidBottomPadding: false,
+                appBar: PreferredSize(
+                  preferredSize: Size.fromHeight(40.0),
+                  child: AppBar(
+                    backgroundColor: Colors.white,
+                    elevation: 10.0,
+                    automaticallyImplyLeading: false,
+                    leading: searchMode
+                        ? GestureDetector(
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.deepPurpleAccent,
+                            ),
+                            onTap: () {
+                              setState(() {
+                                searchMode = false;
+                              });
+                            },
+                          )
+                        : null,
+                    actions: searchMode
+                        ? null
+                        : [
+                            rightPageIdx == 0
+                                ? Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 30.0,
+                                        height: 40.0,
+                                        child: PopupMenuButton(
+                                          onSelected: (value) {
+                                            switch (value) {
+                                              case 1:
+                                                setState(() {
+                                                  rightPageIdx = 3;
+                                                  isMainMenu = false;
+                                                });
+                                                break;
+                                              case 2:
+                                                setState(() {
+                                                  rightPageIdx = 4;
+                                                  isMainMenu = false;
+                                                });
+                                                break;
+                                              case 3:
+                                                setState(() {
+                                                  rightPageIdx = 5;
+                                                  isMainMenu = false;
+                                                });
+                                                break;
+                                              default:
+                                                break;
+                                            }
+                                          },
+                                          icon: Icon(
+                                            Icons.add,
+                                            color: Colors.purpleAccent,
+                                          ),
+                                          itemBuilder: (context) => [
+                                            PopupMenuItem(
+                                              value: 0,
+                                              child: Text(
+                                                "Actions",
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                              enabled: false,
+                                            ),
+                                            PopupMenuItem(
+                                              value: 1,
+                                              child: Row(
+                                                children: [
+                                                  Image.asset(
+                                                    'assets/packages.png',
+                                                    width: 20.0,
+                                                  ),
+                                                  Text(
+                                                      "Stock existing inventory"),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 2,
+                                              child: Row(
+                                                children: [
+                                                  Image.asset(
+                                                    'assets/product.png',
+                                                    width: 20.0,
+                                                  ),
+                                                  Text("Add product"),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 3,
+                                              child: Row(
+                                                children: [
+                                                  Image.asset(
+                                                    'assets/user.png',
+                                                    width: 20.0,
+                                                  ),
+                                                  Text("Add customer"),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 5.0,
+                                          vertical: 15.0,
+                                        ),
+                                        child: Transform(
+                                          transform: Matrix4.translationValues(
+                                              3, -7, 0),
+                                          child: GestureDetector(
+                                            child: FaIcon(
+                                              FontAwesomeIcons.barcode,
+                                              color: Colors.purpleAccent,
+                                            ),
+                                            onTap: () async {
+                                              await ImagePicker().getImage(
+                                                source: ImageSource.camera,
+                                              );
+                                            },
                                           ),
                                         ),
-                                        enabled: false,
                                       ),
-                                      PopupMenuItem(
-                                        value: 1,
-                                        child: Row(
-                                          children: [
-                                            Image.asset(
-                                              'assets/packages.png',
-                                              width: 20.0,
-                                            ),
-                                            Text("Stock existing inventory"),
-                                          ],
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 10.0,
+                                        ),
+                                        child: GestureDetector(
+                                          child: Icon(
+                                            Icons.search,
+                                            color: Colors.purpleAccent,
+                                          ),
+                                          onTap: () {
+                                            setState(() {
+                                              searchMode = true;
+                                              fn.requestFocus();
+                                            });
+                                          },
                                         ),
                                       ),
-                                      PopupMenuItem(
-                                        value: 2,
-                                        child: Row(
-                                          children: [
-                                            Image.asset(
-                                              'assets/product.png',
-                                              width: 20.0,
+                                    ],
+                                  )
+                                : rightPageIdx == 1
+                                    ? Row(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.calendar_today,
                                             ),
-                                            Text("Add product"),
-                                          ],
+                                            color: Colors.black54,
+                                            onPressed: () async {
+                                              orderProvider.selectStartDate(
+                                                  context,
+                                                  await _selectDate(
+                                                      "Start date",
+                                                      orderProvider
+                                                          .startDatePicked));
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.calendar_today,
+                                            ),
+                                            color: Colors.black54,
+                                            onPressed: () async {
+                                              orderProvider.selectEndDate(
+                                                  context,
+                                                  await _selectDate(
+                                                      "End date",
+                                                      orderProvider
+                                                          .endDatePicked));
+                                            },
+                                          ),
+                                        ],
+                                      )
+                                    : Container(),
+                          ],
+                    title: rightPageIdx == 0
+                        ? searchMode
+                            ? TextField(
+                                focusNode: fn,
+                                decoration: InputDecoration(
+                                  hintText: "Search all products",
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                ),
+                              )
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 150.0,
+                                    child: Container(
+                                      width: 150.0,
+                                      child: Text(
+                                        "All products",
+                                        style: TextStyle(
+                                          fontSize: 17.0,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
                                         ),
                                       ),
-                                      PopupMenuItem(
-                                        value: 3,
-                                        child: Row(
-                                          children: [
-                                            Image.asset(
-                                              'assets/user.png',
-                                              width: 20.0,
-                                            ),
-                                            Text("Add customer"),
-                                          ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                        : rightPageIdx == 1
+                            ? Transform(
+                                transform: Matrix4.translationValues(-20, 0, 0),
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 15.0,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Orders",
+                                        style: TextStyle(
+                                          fontSize: 17.0,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
                                   ),
-                                )
-                              : SizedBox(),
-                          index == 0
-                              ? Row(
-                                  children: [
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 5.0,
-                                        vertical: 15.0,
+                                ),
+                              )
+                            : rightPageIdx == 2
+                                ? Transform(
+                                    transform:
+                                        Matrix4.translationValues(-20, 0, 0),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: 15.0,
                                       ),
-                                      child: Transform(
-                                        transform:
-                                            Matrix4.translationValues(3, -7, 0),
-                                        child: GestureDetector(
-                                          child: FaIcon(
-                                            FontAwesomeIcons.barcode,
-                                            color: Colors.purpleAccent,
+                                      child: Text(
+                                        "Store",
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 18.0,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Transform(
+                                    transform:
+                                        Matrix4.translationValues(-20, 0, 0),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: 15.0,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          GestureDetector(
+                                            child: Icon(
+                                              Icons.arrow_back_ios_outlined,
+                                              color: Colors.black54,
+                                            ),
+                                            onTap: () {
+                                              setState(() {
+                                                isMainMenu = true;
+                                                if (rightPageIdx >= 3 &&
+                                                        rightPageIdx <= 6 ||
+                                                    rightPageIdx == 19) {
+                                                  rightPageIdx = 0;
+                                                } else if (rightPageIdx >= 7 &&
+                                                    rightPageIdx <= 14) {
+                                                  rightPageIdx = 2;
+                                                } else if (rightPageIdx >= 15 &&
+                                                    rightPageIdx <= 17) {
+                                                  rightPageIdx = 7;
+                                                } else if (rightPageIdx == 18) {
+                                                  rightPageIdx = 1;
+                                                } else if (rightPageIdx == 20) {
+                                                  rightPageIdx = 19;
+                                                }
+                                              });
+                                            },
                                           ),
-                                          onTap: () async {
-                                            await ImagePicker().getImage(
-                                              source: ImageSource.camera,
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 10.0,
-                                      ),
-                                      child: GestureDetector(
-                                        child: Icon(
-                                          Icons.search,
-                                          color: Colors.purpleAccent,
-                                        ),
-                                        onTap: () {
-                                          setState(() {
-                                            searchMode = true;
-                                            fn.requestFocus();
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Container(),
-                        ],
-                  title: index == 0
-                      ? searchMode
-                          ? TextField(
-                              focusNode: fn,
-                              decoration: InputDecoration(
-                                hintText: "Search all products",
-                                border: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                              ),
-                            )
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 150.0,
-                                  child: Container(
-                                    width: 150.0,
-                                    child: Text(
-                                      "All products",
-                                      style: TextStyle(
-                                        fontSize: 17.0,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
+                                          SizedBox(
+                                            width: 10.0,
+                                          ),
+                                          Text(
+                                            renderTitle(),
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 18.0,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            )
-                      : index == 1
-                          ? Transform(
-                              transform: Matrix4.translationValues(-20, 0, 0),
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  left: 15.0,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Orders",
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 15.0,
-                                      ),
-                                    ),
-                                    Text(
-                                      "Address not available",
-                                      style: TextStyle(
-                                          color: Colors.black54,
-                                          fontSize: 12.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          : index == 2
-                              ? Transform(
-                                  transform:
-                                      Matrix4.translationValues(-20, 0, 0),
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      left: 15.0,
-                                    ),
-                                    child: Text(
-                                      "Store",
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 18.0,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Transform(
-                                  transform:
-                                      Matrix4.translationValues(-20, 0, 0),
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      left: 15.0,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        GestureDetector(
-                                          child: Icon(
-                                            Icons.arrow_back_ios_outlined,
-                                            color: Colors.black54,
-                                          ),
-                                          onTap: () {
-                                            setState(() {
-                                              isMainMenu = true;
-                                              if (index >= 3 && index <= 6 ||
-                                                  index == 19) {
-                                                index = 0;
-                                              } else if (index >= 7 &&
-                                                  index <= 14) {
-                                                index = 2;
-                                              } else if (index >= 15 &&
-                                                  index <= 17) {
-                                                index = 7;
-                                              } else if (index == 18) {
-                                                index = 1;
-                                              } else if (index == 20) {
-                                                index = 19;
-                                              }
-                                            });
-                                          },
-                                        ),
-                                        SizedBox(
-                                          width: 10.0,
-                                        ),
-                                        Text(
-                                          renderTitle(),
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 18.0,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                  ),
                 ),
-              ),
-              body: searchMode
-                  ? null
-                  : Stack(
-                      children: <Widget>[
-                        Offstage(
-                          offstage: index != 0,
-                          child: TickerMode(
-                            enabled: index == 0,
-                            child: _CheckoutPage(
-                              callback: () {
+                body: searchMode
+                    ? null
+                    : Stack(
+                        children: [
+                          Offstage(
+                            offstage: rightPageIdx != 0,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 0,
+                              child: _CheckoutPage(
+                                callback: () {
+                                  setState(
+                                    () {
+                                      rightPageIdx = 6;
+                                      isMainMenu = false;
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 1,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 1,
+                              child: _OrderList(() {
                                 setState(
                                   () {
-                                    index = 6;
+                                    rightPageIdx = 18;
                                     isMainMenu = false;
                                   },
                                 );
-                              },
+                              }),
                             ),
                           ),
-                        ),
-                        Offstage(
-                          offstage: index != 1,
-                          child: TickerMode(
-                            enabled: index == 1,
-                            child: _OrderList(() {
-                              setState(() {
-                                index = 18;
-                                isMainMenu = false;
-                              });
-                            }),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 2,
-                          child: TickerMode(
-                            enabled: index == 2,
-                            child: _StorePage(callback: (idx) {
-                              setState(() {
-                                index = idx + 7;
-                                isMainMenu = false;
-                              });
-                            }),
-                          ),
-                        ),
-
-                        // Checkout Page -> index = 0
-                        Offstage(
-                          offstage: index != 3,
-                          child: TickerMode(
-                            enabled: index == 3,
-                            child: AddInventory(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 4,
-                          child: TickerMode(
-                            enabled: index == 4,
-                            child: AddProduct(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 5,
-                          child: TickerMode(
-                            enabled: index == 5,
-                            child: AddCustomer(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 6,
-                          child: TickerMode(
-                            enabled: index == 6,
-                            child: QuickSale(),
-                          ),
-                        ),
-
-                        // SETTINGS -> index = 2
-                        Offstage(
-                          offstage: index != 7,
-                          child: TickerMode(
-                            enabled: index == 7,
-                            child: Hardware(
-                              callback: (idx) {
+                          Offstage(
+                            offstage: rightPageIdx != 2,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 2,
+                              child: _StorePage(callback: (idx) {
                                 setState(() {
-                                  index = idx + 15;
+                                  rightPageIdx = idx + 7;
                                   isMainMenu = false;
                                 });
-                              },
+                              }),
                             ),
                           ),
-                        ),
-                        Offstage(
-                          offstage: index != 8,
-                          child: TickerMode(
-                            enabled: index == 8,
-                            child: Location(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 9,
-                          child: TickerMode(
-                            enabled: index == 9,
-                            child: Payment(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 10,
-                          child: TickerMode(
-                            enabled: index == 10,
-                            child: Apps(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 11,
-                          child: TickerMode(
-                            enabled: index == 11,
-                            child: Tips(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 12,
-                          child: TickerMode(
-                            enabled: index == 12,
-                            child: Settings(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 13,
-                          child: TickerMode(
-                            enabled: index == 13,
-                            child: Support(() async {
-                              _connected
-                                  ? showTutorial()
-                                  : await showDialog(
-                                      context: context,
-                                      barrierDismissible:
-                                          false, // user must tap button!
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          title: Text(
-                                              'POS printer is not connected'),
-                                          content: Text(
-                                              "You can simply bond your pos printer by visiting hardware page."),
-                                          actions: <Widget>[
-                                            FlatButton(
-                                              child: Text('OK'),
-                                              onPressed: () {
-                                                Navigator.pop(context, "OK");
-                                              },
-                                            ),
-                                            FlatButton(
-                                              child: Text('Cancel'),
-                                              onPressed: () {
-                                                Navigator.pop(
-                                                    context, "Cancel");
-                                              },
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                            }),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 14,
-                          child: TickerMode(
-                            enabled: index == 14,
-                            child: SizedBox(),
-                          ),
-                        ),
 
-                        // Hardware subpage -> index = 7
-                        Offstage(
-                          offstage: index != 15,
-                          child: TickerMode(
-                            enabled: index == 15,
-                            child: ConnectCardReader(
-                              bluetoothConnection: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  DropdownButton(
-                                    items: _getDeviceItems(),
-                                    onChanged: (value) =>
-                                        setState(() => _device = value),
-                                    value: _device,
-                                  ),
-                                  RaisedButton(
-                                    onPressed: _pressed
-                                        ? null
-                                        : _connected
-                                            ? _disconnect
-                                            : _connect,
-                                    child: Text(
-                                        _connected ? 'Disconnect' : 'Connect'),
-                                  ),
-                                  MaterialButton(
-                                    child: Text("Test print"),
-                                    onPressed: () => _testPrint(),
-                                  ),
-                                ],
+                          // Checkout Page -> index = 0
+                          Offstage(
+                            offstage: rightPageIdx != 3,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 3,
+                              child: AddInventory(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 4,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 4,
+                              child: AddProduct(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 5,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 5,
+                              child: AddCustomer(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 6,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 6,
+                              child: QuickSale(),
+                            ),
+                          ),
+
+                          // SETTINGS -> index = 2
+                          Offstage(
+                            offstage: rightPageIdx != 7,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 7,
+                              child: Hardware(
+                                callback: (idx) {
+                                  setState(() {
+                                    rightPageIdx = idx + 15;
+                                    isMainMenu = false;
+                                  });
+                                },
                               ),
-                              isConnected: _connected,
                             ),
                           ),
-                        ),
-                        Offstage(
-                          offstage: index != 16,
-                          child: TickerMode(
-                            enabled: index == 16,
-                            child: ScanCode(),
-                          ),
-                        ),
-                        Offstage(
-                          offstage: index != 17,
-                          child: TickerMode(
-                            enabled: index == 17,
-                            child: DummyPage(),
-                          ),
-                        ),
-
-                        // Order page -> index = 1
-                        Offstage(
-                          offstage: index != 18,
-                          child: TickerMode(
-                            enabled: index == 18,
-                            child: OrderPage(() {
-                              _printReceiptOnOrderPage();
-                            }),
-                          ),
-                        ),
-
-                        // Payment Page
-                        Offstage(
-                          offstage: index != 19,
-                          child: TickerMode(
-                            enabled: index == 19,
-                            child: PaymentPage(
-                              () {
-                                setState(() {
-                                  index = 20;
-                                  isMainMenu = false;
-                                });
-                              },
-                              price: price,
+                          Offstage(
+                            offstage: rightPageIdx != 8,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 8,
+                              child: Location(),
                             ),
                           ),
-                        ),
-                        Offstage(
-                          offstage: index != 20,
-                          child: TickerMode(
-                            enabled: index == 20,
-                            child: PaymentResult(() => _printReceipt(), () {
-                              setState(() {
-                                index = 0;
-                                isMainMenu = true;
-                              });
-                            }, price),
+                          Offstage(
+                            offstage: rightPageIdx != 9,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 9,
+                              child: Payment(),
+                            ),
                           ),
-                        )
-                      ],
-                    ),
-              floatingActionButton: index == 0
-                  ? Container(
-                      key: subTotalButton,
-                      height: 50.0,
-                      width: 330,
-                      child: FloatingActionButton.extended(
-                        onPressed: () {
-                          setState(() {
-                            index = 19;
-                            isMainMenu = false;
-                          });
-                        },
-                        backgroundColor: Colors.deepPurpleAccent,
-                        label: IntrinsicHeight(
-                          child: Row(
-                            children: <Widget>[
-                              Transform(
-                                transform:
-                                    Matrix4.translationValues(-10.0, 0, 0),
-                                child: Row(
-                                  children: <Widget>[
-                                    Text(
-                                      "3",
-                                      style: TextStyle(
-                                        fontSize: 18.0,
-                                      ),
+                          Offstage(
+                            offstage: rightPageIdx != 10,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 10,
+                              child: Apps(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 11,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 11,
+                              child: Tips(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 12,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 12,
+                              child: Settings(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 13,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 13,
+                              child: Support(() async {
+                                _connected
+                                    ? showTutorial()
+                                    : await showDialog(
+                                        context: context,
+                                        barrierDismissible:
+                                            false, // user must tap button!
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text(
+                                                'POS printer is not connected'),
+                                            content: Text(
+                                                "You can simply bond your pos printer by visiting hardware page."),
+                                            actions: <Widget>[
+                                              FlatButton(
+                                                child: Text('OK'),
+                                                onPressed: () {
+                                                  Navigator.pop(context, "OK");
+                                                },
+                                              ),
+                                              FlatButton(
+                                                child: Text('Cancel'),
+                                                onPressed: () {
+                                                  Navigator.pop(
+                                                      context, "Cancel");
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                              }),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 14,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 14,
+                              child: Padding(
+                                padding: EdgeInsets.all(15.0),
+                                child: Text("Will be added soon."),
+                              ),
+                            ),
+                          ),
+
+                          // Hardware subpage -> index = 7
+                          Offstage(
+                            offstage: rightPageIdx != 15,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 15,
+                              child: ConnectCardReader(
+                                bluetoothConnection: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    DropdownButton(
+                                      items: _getDeviceItems(),
+                                      onChanged: (value) =>
+                                          setState(() => _device = value),
+                                      value: _device,
                                     ),
-                                    SizedBox(
-                                      width: 20.0,
+                                    RaisedButton(
+                                      onPressed: _pressed
+                                          ? null
+                                          : _connected
+                                              ? _disconnect
+                                              : _connect,
+                                      child: Text(_connected
+                                          ? 'Disconnect'
+                                          : 'Connect'),
                                     ),
-                                    Container(
-                                      height: 50.0,
-                                      child: VerticalDivider(
-                                        thickness: 2.0,
-                                        color: Colors.white,
-                                      ),
+                                    MaterialButton(
+                                      child: Text("Test print"),
+                                      onPressed: () => _testPrint(),
                                     ),
                                   ],
                                 ),
+                                isConnected: _connected,
                               ),
-                              SizedBox(
-                                width: 30.0,
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 16,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 16,
+                              child: ScanCode(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 17,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 17,
+                              child: DummyPage(),
+                            ),
+                          ),
+
+                          // Order page -> index = 1
+                          Offstage(
+                            offstage: rightPageIdx != 18,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 18,
+                              child: OrderPage(
+                                () {
+                                  _printReceiptOnOrderPage();
+                                },
+                                orderForRenderIdx: orderForRenderIdx,
                               ),
-                              Center(
-                                child: Text(
-                                  "SUBTOTAL \$${price}0",
+                            ),
+                          ),
+                          // Payment Page
+                          Offstage(
+                            offstage: rightPageIdx != 19,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 19,
+                              child: PaymentPage(
+                                (_isCashPage) async {
+                                  if (_isCashPage) {
+                                    await showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            content: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    onChanged: (val) {
+                                                      cashGet = double.parse(val);
+                                                    },
+                                                    autofocus: true,
+                                                    decoration: InputDecoration(
+                                                      labelText: 'Cash get?',
+                                                    ),
+                                                  ),
+                                                )
+                                              ],
+                                            ),
+                                            actions: [
+                                              FlatButton(
+                                                child: Text('OK'),
+                                                onPressed: () {
+                                                  Navigator.pop(context, "OK");
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        }).then(
+                                      (cash) => setState(() {
+                                        rightPageIdx = 20;
+                                        isMainMenu = false;
+                                        isCashPage = _isCashPage;
+                                      }),
+                                    );
+                                  } else {
+                                    setState(() {
+                                      rightPageIdx = 20;
+                                      isMainMenu = false;
+                                      isCashPage = _isCashPage;
+                                    });
+                                  }
+                                },
+                                price: orderProvider.price,
+                              ),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 20,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 20,
+                              child: PaymentResult(
+                                () => _printReceipt(),
+                                () {
+                                  // DONE 누르면
+                                  orderProvider.addOrder(
+                                    Order(
+                                      (idx) {
+                                        setState(() {
+                                          rightPageIdx = 18;
+                                          isMainMenu = false;
+                                          orderForRenderIdx = idx;
+                                          orderTitleIdx = idx;
+                                        });
+                                      },
+                                      date: DateTime.now(),
+                                      totalPrice: orderProvider.price,
+                                      // deep copy
+                                      itemList:
+                                          List.from(orderProvider.itemList),
+                                      orderNo: orderProvider.orderNo,
+                                    ),
+                                  );
+                                  orderProvider.clearListItem();
+                                  orderProvider.orderUp();
+                                  setState(() {
+                                    rightPageIdx = 0;
+                                    isMainMenu = true;
+                                  });
+                                },
+                                orderProvider.price,
+                                isCashPage: isCashPage,
+                                cashGet: cashGet,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                floatingActionButton: rightPageIdx == 0
+                    ? Container(
+                        key: subTotalButton,
+                        height: 50.0,
+                        width: 330,
+                        child: FloatingActionButton.extended(
+                          heroTag: 'btn1',
+                          onPressed: () {
+                            setState(() {
+                              rightPageIdx = 19;
+                              isMainMenu = false;
+                            });
+                          },
+                          backgroundColor: Colors.deepPurpleAccent,
+                          label: IntrinsicHeight(
+                            child: Center(
+                              child: Consumer<OrderProvider>(
+                                builder: (context, provider, _) => Text(
+                                  "SUB TOTAL \$${provider.price}0",
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 18.0,
@@ -1497,56 +1677,82 @@ class MainPageState extends State<MainPage> {
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
+                          shape: RoundedRectangleBorder(),
                         ),
-                        shape: RoundedRectangleBorder(),
+                      )
+                    : null,
+                bottomNavigationBar: Visibility(
+                  visible: isMainMenu,
+                  child: BottomNavigationBar(
+                    selectedItemColor: Colors.deepPurpleAccent,
+                    onTap: (idx) {
+                      setState(() {
+                        rightPageIdx = idx;
+                      });
+                    },
+                    items: <BottomNavigationBarItem>[
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.shopping_cart),
+                        title: Text(
+                          'Checkout',
+                        ),
                       ),
-                    )
-                  : null,
-              bottomNavigationBar: Visibility(
-                visible: isMainMenu,
-                child: BottomNavigationBar(
-                  selectedItemColor: Colors.deepPurpleAccent,
-                  onTap: (idx) {
-                    setState(() {
-                      index = idx;
-                    });
-                  },
-                  items: <BottomNavigationBarItem>[
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.shopping_cart),
-                      title: Text(
-                        'Checkout',
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.card_travel),
+                        title: Text(
+                          'Orders',
+                        ),
                       ),
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.card_travel),
-                      title: Text(
-                        'Orders',
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.store),
+                        title: Text(
+                          'Store',
+                        ),
                       ),
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.store),
-                      title: Text(
-                        'Store',
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _OrderList extends StatelessWidget {
+class _OrderList extends StatefulWidget {
   final Function callback;
 
   _OrderList(this.callback);
+
+  @override
+  __OrderListState createState() => __OrderListState();
+}
+
+class __OrderListState extends State<_OrderList> {
+  final List<String> month = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  // TODO: date에 따라 필터링 구현
+
+  _parseDate(date) {
+    return "${month[date.month - 1]} ${date.day}, ${date.year}";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1559,7 +1765,10 @@ class _OrderList extends StatelessWidget {
             bottom: 10.0,
             left: 10.0,
           ),
-          child: Text("November 3, 2020"),
+          child: Consumer<OrderProvider>(
+            builder: (context, provider, _) => Text(
+                "${_parseDate(provider.startDatePicked)} ~ ${_parseDate(provider.endDatePicked)}"),
+          ),
         ),
         Expanded(
           child: Container(
@@ -1578,45 +1787,112 @@ class _OrderList extends StatelessWidget {
               padding: EdgeInsets.symmetric(
                 horizontal: 10.0,
               ),
-              child: Column(
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: 80.0),
-                    child: MaterialButton(
-                      padding: EdgeInsets.all(0),
-                      onPressed: callback,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("#1001"),
-                          Column(
-                            children: [
-                              Text(
-                                "9:24AM",
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              Text(
-                                "\$240",
-                                style: TextStyle(
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Divider(
-                    color: Colors.black54,
-                  ),
-                ],
+              child: Consumer<OrderProvider>(
+                builder: (context, provider, _) {
+                  if (provider.didModifyDate) {
+                    if (provider.filteredOrder.isEmpty) {
+                      return Text("There are no results.");
+                    } else {
+                      return ListView.builder(
+                        itemCount: provider.filteredOrder?.length ?? 0,
+                        itemBuilder: (_context, index) {
+                          return provider.filteredOrder[index]
+                            ..tapBubblingEvent = () {
+                              return index;
+                            };
+                        },
+                      );
+                    }
+                  } else {
+                    if (provider.orders.isEmpty) {
+                      return Text("There are no results.");
+                    } else {
+                      return ListView.builder(
+                        itemCount: provider.orders?.length ?? 0,
+                        itemBuilder: (_context, index) {
+                          return provider.orders[index]
+                            ..tapBubblingEvent = () {
+                              return index;
+                            };
+                        },
+                      );
+                    }
+                  }
+                },
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class Order extends StatelessWidget {
+  final Function callback;
+  Function tapBubblingEvent;
+
+  final DateTime date;
+
+  // date, title, price, itemCount
+  final List itemList;
+  final totalPrice;
+  final orderNo;
+
+  // final title;
+  // final price;
+  // final itemCount;
+
+  Order(this.callback,
+      {this.date, this.itemList, this.totalPrice, this.orderNo});
+
+  _parseDate() {
+    final hour = date.hour > 12 ? date.hour - 12 : date.hour;
+    final hourString = hour < 10 ? "0$hour" : hour;
+    final minute = date.minute < 10 ? "0${date.minute}" : date.minute;
+
+    return "${date.toString().split(" ")[0]} $hourString:$minute${date.hour < 13 ? "AM" : "PM"}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(minHeight: 80.0),
+          child: MaterialButton(
+            padding: EdgeInsets.all(0),
+            onPressed: () {
+              callback(tapBubblingEvent());
+            },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("#$orderNo"),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _parseDate(),
+                      style: TextStyle(
+                        color: Colors.black54,
+                      ),
+                    ),
+                    Text(
+                      "\$$totalPrice",
+                      style: TextStyle(
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        Divider(
+          color: Colors.black54,
         ),
       ],
     );
@@ -1628,39 +1904,6 @@ class _CheckoutPage extends StatelessWidget {
   static final salesPage = GlobalKey();
 
   _CheckoutPage({this.callback});
-
-  static List listItem = [
-    _ListItem(
-      title: 'Mug Cup',
-      imageUrl: 'assets/cup.jpeg',
-      price: 6.99,
-    ),
-    _ListItem(
-      title: 'Chair',
-      imageUrl: 'assets/chair.jpg',
-      price: 21.99,
-    ),
-    _ListItem(
-      title: 'napkin 1 pack',
-      imageUrl: 'assets/napkin.jpeg',
-      price: 1.99,
-    ),
-    _ListItem(
-      title: 'notebooks',
-      imageUrl: 'assets/notebooks.jpg',
-      price: 2.99,
-    ),
-    _ListItem(
-      title: 'tumbler cup',
-      imageUrl: 'assets/tumbler.jpg',
-      price: 4.99,
-    ),
-    _ListItem(
-      title: 'Standard Clock',
-      imageUrl: 'assets/clock.jpg',
-      price: 6.99,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -1686,19 +1929,61 @@ class _CheckoutPage extends StatelessWidget {
           ),
         ),
         Expanded(
-          key: salesPage,
+          key: _CheckoutPage.salesPage,
           flex: 1,
-          child: ListView.builder(
-            itemCount: listItem.length,
-            itemBuilder: (context, index) {
-              return listItem[index];
-            },
+          child: Consumer<OrderProvider>(
+            builder: (context, provider, _) => ListView.builder(
+              itemCount: provider.itemList.length,
+              itemBuilder: (context, index) {
+                final pvd = provider.itemList[index];
+                return ItemList(
+                  image: pvd.image,
+                  title: pvd.title,
+                  price: pvd.price,
+                  itemCount: pvd.itemCount,
+                );
+              },
+            ),
           ),
         ),
         SizedBox(
           height: 70.0,
         )
       ],
+    );
+  }
+}
+
+class _AddItemField extends StatelessWidget {
+  final title;
+  final callback;
+  final controller;
+
+  _AddItemField(this.title, {this.callback, this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 300,
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(20.0)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 10.0,
+        ),
+        child: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: title,
+            border: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+          ),
+          onChanged: callback,
+        ),
+      ),
     );
   }
 }
@@ -1726,7 +2011,7 @@ class _StorePage extends StatelessWidget {
     'Tips',
     'Settings',
     'Support',
-    'Get Gabin mobile'
+    'Get Gavin mobile'
   ];
 
   @override
@@ -1812,7 +2097,9 @@ class _StorePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 MaterialButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Row(
@@ -1838,92 +2125,101 @@ class _StorePage extends StatelessWidget {
   }
 }
 
-class _ListItem extends StatelessWidget {
-  final String imageUrl;
+class ItemList extends StatelessWidget {
+  // final String imageUrl;
+  final ImageProvider image;
+
   final String title;
   final double price;
+  int itemCount;
 
-  _ListItem({
-    @required this.imageUrl,
+  ItemList({
+    @required this.image,
     @required this.title,
     @required this.price,
+    @required this.itemCount,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: <Widget>[
-        Container(
-            height: 100,
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 18.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 80.0,
-                        decoration: BoxDecoration(
-                            image: DecorationImage(
-                              image: ExactAssetImage(imageUrl),
-                              fit: BoxFit.cover,
-                            ),
-                            border: Border.all(
-                              color: Colors.black12,
-                            )),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.only(
-                          left: 10.0,
+      children: [
+        MaterialButton(
+          padding: EdgeInsets.all(0),
+          onPressed: () {
+            orderProvider.removeList(itemCount, title, price);
+          },
+          child: Container(
+              height: 100,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 18.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 80.0,
+                          child: Image(image: image),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              title,
-                              style: TextStyle(
-                                color: Colors.black,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 8.0,
-                            ),
-                            Text(
-                              "\$$price",
-                            )
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  ButtonTheme(
-                    padding: EdgeInsets.all(0),
-                    minWidth: 0,
-                    height: 0,
-                    child: MaterialButton(
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      onPressed: () {},
-                      child: Container(
-                        decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.deepPurpleAccent,
-                              width: 1.2,
-                            ),
-                            borderRadius: BorderRadius.circular(30.0)),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 5.5,
+                        Padding(
+                          padding: EdgeInsets.only(
+                            left: 10.0,
                           ),
-                          child: Text("i"),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  color: Colors.black,
+                                ),
+                              ),
+                              SizedBox(
+                                height: 8.0,
+                              ),
+                              Text(
+                                "\$$price",
+                              ),
+                              SizedBox(
+                                height: 8.0,
+                              ),
+                              Text(
+                                "count: $itemCount",
+                              )
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    ButtonTheme(
+                      padding: EdgeInsets.all(0),
+                      minWidth: 0,
+                      height: 0,
+                      child: MaterialButton(
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onPressed: () {},
+                        child: Container(
+                          decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.deepPurpleAccent,
+                                width: 1.2,
+                              ),
+                              borderRadius: BorderRadius.circular(30.0)),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 5.5,
+                            ),
+                            child: Text("i"),
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                ],
-              ),
-            )),
+                    )
+                  ],
+                ),
+              )),
+        ),
         Divider(),
       ],
     );

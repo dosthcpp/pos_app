@@ -68,7 +68,7 @@ class _SettingsState extends State<Settings> {
                               ),
                             ),
                             Text(
-                              "Orders that will be shipped to a\ncustomer are always marked as\nunfulfilled atcheckout.",
+                              "Orders that will be shipped to a\ncustomer are always marked as\nfulfilled at checkout.",
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 15.0,

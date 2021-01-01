@@ -97,7 +97,7 @@ class Location extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Edit locations",
+                    "Official store location",
                     style: TextStyle(
                         color: Colors.purple,
                         fontSize: 15.0,

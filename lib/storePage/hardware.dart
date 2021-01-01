@@ -164,7 +164,7 @@ class ConnectCardReader extends StatelessWidget {
                     bluetoothConnection,
                     isConnected
                         ? Text(
-                        "Your pos printer has successfully been connected!")
+                            "Your pos printer has successfully been connected!")
                         : Container(),
                   ],
                 ),
@@ -374,7 +374,25 @@ class DummyPage extends StatelessWidget {
                 height: 50.0,
               ),
               MaterialButton(
-                onPressed: () {},
+                onPressed: () {
+                  showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text('Alert!'),
+                          content: Text(
+                              "Please contact customer service."),
+                          actions: [
+                            FlatButton(
+                              child: Text('OK'),
+                              onPressed: () {
+                                Navigator.pop(context, "OK");
+                              },
+                            ),
+                          ],
+                        );
+                      });
+                },
                 child: Container(
                   height: 50,
                   width: MediaQuery.of(context).size.width,
@@ -394,7 +412,25 @@ class DummyPage extends StatelessWidget {
                 height: 10.0,
               ),
               MaterialButton(
-                onPressed: () {},
+                onPressed: () {
+                  showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text('Alert!'),
+                          content: Text(
+                              "Please contact customer service."),
+                          actions: [
+                            FlatButton(
+                              child: Text('OK'),
+                              onPressed: () {
+                                Navigator.pop(context, "OK");
+                              },
+                            ),
+                          ],
+                        );
+                      });
+                },
                 child: Container(
                   height: 50,
                   width: MediaQuery.of(context).size.width,

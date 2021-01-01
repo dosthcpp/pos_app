@@ -7,8 +7,8 @@ class PaymentPage extends StatelessWidget {
 
   static final GlobalKey paymentButton = GlobalKey();
 
+  PaymentPage(this.callback,{this.price});
 
-  PaymentPage(this.callback, {this.price});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,7 +18,7 @@ class PaymentPage extends StatelessWidget {
           horizontal: 10.0,
         ),
         child: Column(
-          children: <Widget>[
+          children: [
             Text(
               "Total",
               style: TextStyle(
@@ -36,13 +36,15 @@ class PaymentPage extends StatelessWidget {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
+                  children: [
                     Container(
                       key: paymentButton,
                       child: _PaymentMethod(
                         title: "Credit",
                         imageUrl: 'assets/credit-card.png',
-                        callback: callback,
+                        callback: () {
+                          callback(false);
+                        },
                       ),
                     ),
                     SizedBox(
@@ -51,17 +53,38 @@ class PaymentPage extends StatelessWidget {
                     _PaymentMethod(
                       title: "External terminal",
                       imageUrl: 'assets/pos-terminal.png',
-                      callback: callback,
+                      callback: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Alert!'),
+                              content:
+                                  Text("No connection. Please check again."),
+                              actions: <Widget>[
+                                FlatButton(
+                                  child: Text('OK'),
+                                  onPressed: () {
+                                    Navigator.pop(context, "OK");
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
+                  children: [
                     _PaymentMethod(
                       title: "Cash",
                       imageUrl: 'assets/money.png',
-                      callback: callback,
+                      callback: () {
+                        callback(true);
+                      },
                     ),
                     SizedBox(
                       width: 20.0,
@@ -69,7 +92,26 @@ class PaymentPage extends StatelessWidget {
                     _PaymentMethod(
                       title: "Gift card",
                       imageUrl: 'assets/gift-card.png',
-                      callback: callback,
+                      callback: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Alert!'),
+                              content:
+                              Text("You are not an administrator. Please conact the administrator."),
+                              actions: <Widget>[
+                                FlatButton(
+                                  child: Text('OK'),
+                                  onPressed: () {
+                                    Navigator.pop(context, "OK");
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -87,7 +129,8 @@ class _PaymentMethod extends StatelessWidget {
   final String imageUrl;
   final Function callback;
 
-  _PaymentMethod({@required this.title, @required this.imageUrl, this.callback});
+  _PaymentMethod(
+      {@required this.title, @required this.imageUrl, this.callback});
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pos_app/storePage/hardware.dart';
 
 class Tips extends StatefulWidget {
   static const id = 'tips';

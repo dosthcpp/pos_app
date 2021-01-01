@@ -18,8 +18,8 @@ class Support extends StatelessWidget {
 
   List<String> _subTitle = [
     '02-1234-5678',
-    'retail-support@gabincorp.com',
-    'https://help.gabincorp.com/kr/',
+    'retail-support@gavincorp.com',
+    'https://help.gavincorp.com/kr/',
     'Help us improve',
     'Tell us how we\'re doing.',
     'Learn how to print a simple receipt.'
