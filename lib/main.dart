@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:pos_app/main_page.dart';
 import 'package:pos_app/startingPage.dart';
 import 'package:pos_app/storePage/apps.dart';
@@ -9,7 +12,10 @@ import 'package:pos_app/storePage/settings.dart';
 import 'package:pos_app/storePage/tips.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'init_page.dart';
+
+import 'package:path_provider/path_provider.dart' as pp;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 final OrderProvider orderProvider = OrderProvider();
 
@@ -37,12 +43,16 @@ class OrderProvider extends ChangeNotifier {
   // 오더리스트
   List<Order> orders = [];
   List<Order> filteredOrder = [];
+
   double price = 0.0;
   int orderNo = 1001;
 
   DateTime startDatePicked;
   DateTime endDatePicked;
   bool didModifyDate = false;
+
+  _renderDate() =>
+      "${DateTime.now().toString().split(' ')[0]} ${DateTime.now().toString().split(' ')[1].split('.')[0]}";
 
   initDate() {
     DateTime now = DateTime.now();
@@ -53,7 +63,7 @@ class OrderProvider extends ChangeNotifier {
 
   addList(item, _price) {
     final found = orderProvider.itemList
-        .where((_item) => _item.title.toLowerCase().contains(item.title))
+        .where((_item) => _item.title.toLowerCase() == item.title)
         .toList();
     if (found.length == 0) {
       // 이름이 없으면
@@ -74,7 +84,6 @@ class OrderProvider extends ChangeNotifier {
           .toList()[0]
           .itemCount--;
     }
-    print(_price);
     price -= _price;
     notifyListeners();
   }
@@ -191,6 +200,67 @@ class OrderProvider extends ChangeNotifier {
     orderNo++;
     notifyListeners();
   }
+
+  exportAsPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.ListView.builder(
+            itemBuilder: (context, index) {
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text("Order Number: ${orders[index].orderNo}"),
+                  pw.Text(
+                      "Order Time: ${orders[index].date.toString().split(" ")[0]} ${orders[index].date.toString().split(" ")[1].split(".")[0]}"),
+                  orders[0].cash
+                      ? pw.Column(children: [
+                          pw.Text("Payment method: Cash"),
+                          pw.Text("Cash Get: ${orders[index].cashGet}"),
+                        ])
+                      : pw.Text("Payment method: Card"),
+                  pw.Text("Sold by: Ricardo Vazquez"),
+                  pw.Text("Customer: Tobi Lutke, Ottawa, Ontario"),
+                  pw.Text("Item List : "),
+                  orders[index].itemList.length != 0
+                      ? pw.Column(
+                          children: orders[index].itemList.map((item) {
+                            return pw.Row(
+                              children: [
+                                // pw.Image.provider(item.image),
+                                pw.Text(
+                                    "${item.title} (\$${item.price}0 * ${item.itemCount}) : ${item.price * item.itemCount}0 "),
+                              ],
+                            );
+                          }).toList(),
+                        )
+                      : pw.Text("null"),
+                  index != orders.length - 1 ? pw.Divider() : pw.Container(),
+                ],
+              );
+            },
+            itemCount: orders.length,
+          );
+        },
+      ),
+    ); // Page
+
+    final directory = (await pp.getExternalStorageDirectory()).path;
+    final file = File("$directory/example.pdf");
+    await file.writeAsBytes(pdf.save());
+    final Email email = Email(
+      body: 'Receipt',
+      subject: 'Receipt',
+      recipients: ['tedjung@ciousya.com'],
+      attachmentPaths: ['$directory/example.pdf'],
+      isHTML: false,
+    );
+
+    await FlutterEmailSender.send(email);
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -199,11 +269,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       localizationsDelegates: [GlobalMaterialLocalizations.delegate],
       supportedLocales: [Locale('en'), Locale('kr')],
-      initialRoute: StartingPage.id,
+      initialRoute: MainPage.id,
       routes: {
         StartingPage.id: (context) => StartingPage(),
         MainPage.id: (context) => MainPage(),
-        InitPage.id: (context) => InitPage(),
         Hardware.id: (context) => Hardware(),
         ConnectCardReader.id: (context) => ConnectCardReader(),
         ScanCode.id: (context) => ScanCode(),

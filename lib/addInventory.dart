@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pos_app/main_page.dart';
 
 class AddInventory extends StatefulWidget {
   final Function callback;

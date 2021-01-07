@@ -9,10 +9,10 @@ class OrderPage extends StatelessWidget {
 
   OrderPage(this.callback, {this.orderForRenderIdx});
 
-  _renderTime() {
+  _renderTime(order) {
     final _date = orderProvider.orders?.length == 0
         ? DateTime.now()
-        : orderProvider.orders.elementAt(orderForRenderIdx).date;
+        : order.date;
     if (_date != null) {
       final hour = _date.hour > 12 ? _date.hour - 12 : _date.hour;
       final hourString = hour < 10 ? "0$hour" : hour;
@@ -31,6 +31,8 @@ class OrderPage extends StatelessWidget {
         final order = provider?.orders?.length == 0
             ? Order(() {})
             : provider?.orders?.elementAt(orderForRenderIdx);
+        bool _useCash = order.cash == null ? false : order.cash;
+        bool _promotion = order.promotion == null ? false : order.promotion;
         return Scaffold(
           body: Column(
             children: [
@@ -55,7 +57,7 @@ class OrderPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_renderTime()),
+                          Text(_renderTime(order)),
                           Text(
                             "\$${order.totalPrice ?? 0}0",
                             style: TextStyle(fontSize: 40.0),
@@ -67,24 +69,28 @@ class OrderPage extends StatelessWidget {
                           SizedBox(
                             height: 10.0,
                           ),
-                          Row(
-                            children: [
-                              Container(
-                                width: 8.0,
-                                height: 8.0,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  color: Colors.black45,
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8.0,
+                                  height: 8.0,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    color: Colors.black45,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: 6.0,
-                              ),
-                              Text(
-                                "Paid",
-                                style: TextStyle(color: Colors.black45),
-                              )
-                            ],
+                                SizedBox(
+                                  width: 6.0,
+                                ),
+                                Text(
+                                  "Paid by ${_useCash ? "Cash (Got \$${order.cashGet}0)" : "Card"}${_promotion ? ", applied \$20.00 of promotion" : ""}",
+                                  style: TextStyle(color: Colors.black45),
+                                  overflow: TextOverflow.fade,
+                                )
+                              ],
+                            ),
                           )
                         ],
                       ),
@@ -215,7 +221,9 @@ class OrderPage extends StatelessWidget {
                   width: (MediaQuery.of(context).size.width / 3) - 30,
                   color: Colors.black12,
                   child: MaterialButton(
-                    onPressed: callback,
+                    onPressed: () {
+                      callback(order, _useCash, _promotion);
+                    },
                     child: Text(
                       "Print receipt",
                       style: TextStyle(

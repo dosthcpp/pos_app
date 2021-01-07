@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pos_app/storePage/hardware.dart';
 
 class Payment extends StatefulWidget {
   static const id = 'payment';

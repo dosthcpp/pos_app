@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:pos_app/main_page.dart';
 
 class PaymentResult extends StatelessWidget {
   final callback;
   final callback2;
+  final callback3;
   final price;
-  final isCashPage;
+  final willUseCash;
   final cashGet;
+  final promotion;
 
   static final printReceiptKey = GlobalKey();
 
-  PaymentResult(this.callback, this.callback2, this.price,
-      {this.isCashPage, this.cashGet});
+  PaymentResult(this.callback, this.callback2, this.callback3, this.price,
+      {this.willUseCash, this.cashGet, this.promotion});
 
   @override
   Widget build(BuildContext context) {
@@ -27,14 +28,16 @@ class PaymentResult extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  "Change due",
+                  "Charge due",
                   style: TextStyle(
                     fontSize: 15.0,
                   ),
                 ),
-                isCashPage
+                willUseCash
                     ? Text(
-                        "\$${cashGet - price}0",
+                        promotion
+                            ? "\$${-(price - cashGet - 20) == -0 ? 0.0 : -(price - cashGet - 20.0)}0"
+                            : "\$${cashGet - price}0",
                         style: TextStyle(fontSize: 45.0),
                       )
                     : Text(
@@ -48,7 +51,7 @@ class PaymentResult extends StatelessWidget {
                 SizedBox(
                   height: 5.0,
                 ),
-                isCashPage
+                willUseCash
                     ? Column(
                         children: [
                           Text(
@@ -78,6 +81,27 @@ class PaymentResult extends StatelessWidget {
                     _PaymentMethod(
                       title: "Gift receipt",
                       imageUrl: 'assets/gift-box.png',
+                      callback: () {
+                        showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('Alert!'),
+                                content: Text(
+                                  "Will be added soon.",
+                                ),
+                                actions: [
+                                  FlatButton(
+                                    child: Text('OK'),
+                                    onPressed: () {
+                                      Navigator.pop(
+                                          context, "OK");
+                                    },
+                                  ),
+                                ],
+                              );
+                            });
+                      },
                     ),
                   ],
                 ),
@@ -87,6 +111,7 @@ class PaymentResult extends StatelessWidget {
                     _PaymentMethod(
                       title: "Email receipt",
                       imageUrl: 'assets/email.png',
+                      callback: callback3,
                     ),
                     SizedBox(
                       width: 20.0,
@@ -94,13 +119,34 @@ class PaymentResult extends StatelessWidget {
                     _PaymentMethod(
                       title: "Text receipt",
                       imageUrl: 'assets/chat.png',
+                      callback: () {
+                        showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('Alert!'),
+                                content: Text(
+                                  "Will be added soon.",
+                                ),
+                                actions: [
+                                  FlatButton(
+                                    child: Text('OK'),
+                                    onPressed: () {
+                                      Navigator.pop(
+                                          context, "OK");
+                                    },
+                                  ),
+                                ],
+                              );
+                            });
+                      },
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          price > 20.0
+          promotion && price > 20.0
               ? Container(
                   width: MediaQuery.of(context).size.width + 20,
                   height: 60,
@@ -150,7 +196,7 @@ class PaymentResult extends StatelessWidget {
           SizedBox(
             height: 15.0,
           ),
-          isCashPage
+          willUseCash
               ? Container()
               : Container(
                   width: MediaQuery.of(context).size.width + 20,
@@ -196,7 +242,7 @@ class PaymentResult extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          "\$${price > 20.0 ? price - 20.0 : price}0",
+                          "\$${promotion ? price - 20.0 : price}0",
                           style: TextStyle(
                             fontSize: 18.0,
                             letterSpacing: -1.0,

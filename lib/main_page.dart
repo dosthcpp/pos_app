@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_email_sender/flutter_email_sender.dart';
 
 import 'package:pos_app/addCustomer.dart';
 import 'package:pos_app/addInventory.dart';
@@ -30,49 +29,11 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart' as pp;
 import 'package:provider/provider.dart';
 import 'package:tutorial_coach_mark/animated_focus_light.dart';
 import 'package:tutorial_coach_mark/custom_target_position.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-
-// RenderRepaintBoundary boundary =
-// scr.currentContext
-//     .findRenderObject();
-// final directory = (await pp.getApplicationDocumentsDirectory()).path;
-// var image =
-// await boundary.toImage();
-// var byteData =
-// await image.toByteData(
-//     format:
-//     ImageByteFormat.png);
-// var pngBytes =
-// byteData.buffer.asUint8List();
-// print(pngBytes);
-// File imgFile = File('$directory/screenshot.png');
-// print(directory);
-// imgFile.writeAsBytes(pngBytes);
-// final RenderBox box =
-// keys[index].currentContext.findRenderObject();
-//
-// final position =
-// box.getTransformTo(null).getTranslation();
-// final topLeft = {position.x, position.y};
-// final topRight = {
-//   position.x + box.size.width,
-//   position.y
-// };
-// final bottomLeft = {
-//   position.x,
-//   position.y + box.size.height
-// };
-// final bottomRight = {
-//   position.x + box.size.width,
-//   position.y + box.size.height
-// };
-// print(topLeft);
-// print(topRight);
-// print(bottomLeft);
-// print(bottomRight);
 
 class MainPage extends StatefulWidget {
   static const id = 'main_page';
@@ -85,7 +46,7 @@ class MainPageState extends State<MainPage> {
   bool searchMode = false;
   bool isMainMenu = true;
 
-  int imageIdx = 0;
+  int currentOrderIdx = 0;
   int rightPageIdx = 0;
   int leftPageIdx = 0;
   int orderTitleIdx = 0;
@@ -102,8 +63,9 @@ class MainPageState extends State<MainPage> {
 
   final fn = FocusNode();
 
-  bool isCashPage = false;
+  bool willUseCash = false;
   double cashGet = 0.0;
+  bool promotion = false;
 
   // final scr = GlobalKey();
 
@@ -506,12 +468,13 @@ class MainPageState extends State<MainPage> {
         bluetooth.printLeftRight("A Mug cup \$6.99", "1 \$6.99", 1);
         bluetooth.printCustom("----------------------------", 1, 1);
         bluetooth.printLeftRight("Subtotal", "\$6.99", 1);
-        bluetooth.printLeftRight("Net Amount", "\$6.99", 1);
-        bluetooth.printLeftRight("Tax", "\$0.99", 1);
+        bluetooth.printLeftRight("Net Amount", "\$6.29", 1);
+        bluetooth.printLeftRight("Tax", "\$0.69", 1);
         bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Total", "\$0.99", 1);
+        bluetooth.printLeftRight("Total", "\$6.99", 1);
         bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Promotion", "\$4.99", 1);
+        bluetooth.printLeftRight("Cash :", "\$6.99", 1);
+        bluetooth.printLeftRight("Charge due :", "\$0.00", 1);
         bluetooth.printCustom("----------------------------", 1, 1);
         bluetooth.printLeftRight("Card", "MasterCard", 1);
         bluetooth.printLeftRight("Membership No. :", "96641334156***", 1);
@@ -529,8 +492,6 @@ class MainPageState extends State<MainPage> {
         bluetooth.printCustom("My reward (GB29**)", 0, 0);
         bluetooth.printCustom("My coupon No : 1590230415049", 0, 0);
         bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Cash :", "\$2.00", 1);
-        bluetooth.printLeftRight("Charge due :", "\$0.00", 1);
         bluetooth.printNewLine();
         bluetooth.printNewLine();
         bluetooth.paperCut();
@@ -549,29 +510,45 @@ class MainPageState extends State<MainPage> {
           bluetooth.printLeftRight("[POS 01]",
               DateTime.now().toString().split(' ')[1].split('.')[0], 1);
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Item name / PPU /", "# / Total price", 1);
+          if (orderProvider.itemList.length != 0) {
+            bluetooth.printLeftRight("Item name / PPU /", "# / Total price", 1);
+          }
           orderProvider.itemList.forEach((el) {
             bluetooth.printLeftRight(
                 "${el.title} \$${el.price}", "1 \$${el.price}", 1);
           });
-          bluetooth.printCustom("----------------------------", 1, 1);
+          if (orderProvider.itemList.length != 0) {
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
           bluetooth.printLeftRight("Subtotal", "\$${orderProvider.price}", 1);
-          bluetooth.printLeftRight("Net Amount", "\$${orderProvider.price}", 1);
+          bluetooth.printLeftRight(
+              "Net Amount", "\$${orderProvider.price / 10 * 9}", 1);
           bluetooth.printLeftRight("Tax", "\$${orderProvider.price / 10}", 1);
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Total", "\$${orderProvider.price}", 1);
-          bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Promotion", "\$20.0", 1);
-          bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Card", "MasterCard", 1);
-          bluetooth.printLeftRight("Membership No. :", "96641334156***", 1);
-          bluetooth.printCustom("Card Approval No. :", 1, 0);
-          bluetooth.printCustom("20201120112005123", 1, 2);
-          bluetooth.printLeftRight("Affiliate No. :", "3230", 1);
-          bluetooth.printCustom("----------------------------", 1, 1);
+          if (promotion) {
+            bluetooth.printLeftRight("Promotion", "\$20.0", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
           bluetooth.printLeftRight(
-              "Membership Credit", "\$${orderProvider.price}", 1);
-          bluetooth.printLeftRight("Membership Card", "*********6912", 1);
+              "Total",
+              "\$${promotion ? orderProvider.price - 20 : orderProvider.price}0",
+              1);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          if (willUseCash) {
+            bluetooth.printLeftRight("Cash :", "\$$cashGet", 1);
+            bluetooth.printLeftRight("Charge due :", "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          } else {
+            bluetooth.printLeftRight("Card", "MasterCard", 1);
+            bluetooth.printLeftRight("Membership No. :", "96641334156***", 1);
+            bluetooth.printCustom("Card Approval No. :", 1, 0);
+            bluetooth.printCustom("20201120112005123", 1, 2);
+            bluetooth.printLeftRight("Affiliate No. :", "3230", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
+          bluetooth.printLeftRight("Membership Credit", "\$0.99}", 1);
+          bluetooth.printLeftRight(
+              "Membership Card No. : ", "*********6912", 1);
           bluetooth.printCustom("Approval No : 577145", 1, 1);
           bluetooth.printCustom("Balance: \$0.00", 1, 1);
           bluetooth.printCustom("----------------------------", 1, 1);
@@ -580,8 +557,6 @@ class MainPageState extends State<MainPage> {
           bluetooth.printCustom("My reward (GB29**)", 0, 0);
           bluetooth.printCustom("My coupon No : 755F47HB2B7A98C9", 0, 0);
           bluetooth.printCustom("----------------------------", 1, 1);
-          bluetooth.printLeftRight("Cash :", "\$0.00", 1);
-          bluetooth.printLeftRight("Charge due :", "\$0.00", 1);
           bluetooth.printNewLine();
           bluetooth.printNewLine();
           bluetooth.paperCut();
@@ -590,51 +565,70 @@ class MainPageState extends State<MainPage> {
     );
   }
 
-  void _printReceiptOnOrderPage() async {
-    bluetooth.isConnected.then((isConnected) {
-      if (isConnected) {
-        bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
-        bluetooth.printNewLine();
-        bluetooth.printCustom("RECEIPT", 3, 1);
-        bluetooth.printLeftRight("Address:", "", 0);
-        bluetooth.printLeftRight("[POS 01]",
-            DateTime.now().toString().split(' ')[1].split('.')[0], 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Item name / PPU /", "# / Total price", 1);
-        bluetooth.printLeftRight("Walnut Planter \$61.6", "3 \$61.60", 1);
-        bluetooth.printLeftRight("Mug cup \$24.25", "1 \$24.25", 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Subtotal", "\$209.05", 1);
-        bluetooth.printLeftRight("Net Amount", "\$209.05", 1);
-        bluetooth.printLeftRight("Tax", "\$20.90", 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Total", "\$209.05", 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Promotion", "\$0.00", 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Card", "MasterCard", 1);
-        bluetooth.printLeftRight("Membership No. :", "96641334156***", 1);
-        bluetooth.printCustom("Card Approval No. :", 1, 0);
-        bluetooth.printCustom("20201120112005123", 1, 2);
-        bluetooth.printLeftRight("Affiliate No. :", "3230", 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Membership Credit", "\$209.05", 1);
-        bluetooth.printLeftRight("Membership Card", "*********6912", 1);
-        bluetooth.printCustom("Approval No : 577145", 1, 1);
-        bluetooth.printCustom("Balance: \$0.00", 1, 1);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printCustom(
-            "Please Charge your card since your balance is \$0.00", 0, 0);
-        bluetooth.printCustom("My reward (GB29**)", 0, 0);
-        bluetooth.printCustom("My coupon No : 1590230415049", 0, 0);
-        bluetooth.printCustom("----------------------------", 1, 1);
-        bluetooth.printLeftRight("Cash :", "\$0.00", 1);
-        bluetooth.printLeftRight("Charge due :", "\$0.00", 1);
-        bluetooth.printNewLine();
-        bluetooth.printNewLine();
-        bluetooth.paperCut();
-      }
-    });
+  void _printReceiptOnOrderPage(order, _useCash, _promotion) async {
+    bluetooth.isConnected.then(
+          (isConnected) {
+        if (isConnected) {
+          bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
+          bluetooth.printNewLine();
+          bluetooth.printCustom("RECEIPT", 3, 1);
+          bluetooth.printLeftRight("Address:", "", 0);
+          bluetooth.printLeftRight("[POS 01]",
+              DateTime.now().toString().split(' ')[1].split('.')[0], 1);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          if (order.itemList.length != 0) {
+            bluetooth.printLeftRight("Item name / PPU /", "# / Total price", 1);
+          }
+          order.itemList.forEach((el) {
+            bluetooth.printLeftRight(
+                "${el.title} \$${el.price}", "1 \$${el.price}", 1);
+          });
+          if (order.itemList.length != 0) {
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
+          bluetooth.printLeftRight("Subtotal", "\$${order.totalPrice}", 1);
+          bluetooth.printLeftRight(
+              "Net Amount", "\$${order.totalPrice / 10 * 9}", 1);
+          bluetooth.printLeftRight("Tax", "\$${order.totalPrice / 10}", 1);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          if (promotion) {
+            bluetooth.printLeftRight("Promotion", "\$20.0", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
+          bluetooth.printLeftRight(
+              "Total",
+              "\$${order.promotion ? order.totalPrice - 20 : order.totalPrice}0",
+              1);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          if (willUseCash) {
+            bluetooth.printLeftRight("Cash :", "\$${order.cashGet}", 1);
+            bluetooth.printLeftRight("Charge due :", "${order.promotion ? "\$${-(order.totalPrice - order.cashGet - 20) == -0 ? 0.0 : -(order.totalPrice - order.cashGet - 20.0)}0" : "\$${order.cashGet - order.totalPrice}0"}", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          } else {
+            bluetooth.printLeftRight("Card", "MasterCard", 1);
+            bluetooth.printLeftRight("Membership No. :", "96641334156***", 1);
+            bluetooth.printCustom("Card Approval No. :", 1, 0);
+            bluetooth.printCustom("20201120112005123", 1, 2);
+            bluetooth.printLeftRight("Affiliate No. :", "3230", 1);
+            bluetooth.printCustom("----------------------------", 1, 1);
+          }
+          bluetooth.printLeftRight("Membership Credit", "\$0.99}", 1);
+          bluetooth.printLeftRight(
+              "Membership Card No. : ", "*********6912", 1);
+          bluetooth.printCustom("Approval No : 577145", 1, 1);
+          bluetooth.printCustom("Balance: \$0.00", 1, 1);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          bluetooth.printCustom(
+              "Please Charge your card since your balance is \$0.00", 0, 0);
+          bluetooth.printCustom("My reward (GB29**)", 0, 0);
+          bluetooth.printCustom("My coupon No : 755F47HB2B7A98C9", 0, 0);
+          bluetooth.printCustom("----------------------------", 1, 1);
+          bluetooth.printNewLine();
+          bluetooth.printNewLine();
+          bluetooth.paperCut();
+        }
+      },
+    );
   }
 
   List<DropdownMenuItem<BluetoothDevice>> _getDeviceItems() {
@@ -692,6 +686,8 @@ class MainPageState extends State<MainPage> {
         return "Select Payment";
       case 20:
         return "Order complete";
+      case 21:
+        return "Receipt";
     }
   }
 
@@ -723,13 +719,51 @@ class MainPageState extends State<MainPage> {
                         ),
                       ),
                       actions: [
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              leftPageIdx = 1;
-                            });
-                          },
-                          child: Text("+ADD ITEM"),
+                        Visibility(
+                          visible: leftPageIdx == 0,
+                          child: TextButton(
+                            onPressed: () {
+                              if (currentOrderIdx != 5) {
+                                setState(() {
+                                  leftPageIdx = 1;
+                                });
+                              } else {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text(
+                                        'Alert!',
+                                      ),
+                                      content: Text(
+                                        "No more items can be added. Please contact customer service.",
+                                      ),
+                                      actions: [
+                                        FlatButton(
+                                          child: Text('OK'),
+                                          onPressed: () {
+                                            leftPageIdx = 0;
+                                            Navigator.pop(
+                                              context,
+                                              "OK",
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            },
+                            child: Text(
+                              "+ADD ITEM",
+                              style: TextStyle(
+                                color: currentOrderIdx != 5
+                                    ? Colors.blueAccent
+                                    : Colors.black54,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                       backgroundColor: Colors.white,
@@ -755,32 +789,19 @@ class MainPageState extends State<MainPage> {
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
-                                      return GestureDetector(
-                                        child: Container(
-                                          color: Colors.grey[200],
-                                          width: 80,
-                                          child: Center(
-                                            child: Align(
-                                              alignment: Alignment.center,
-                                              child: Image(
-                                                image: providers[index],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        onTap: () {
-                                          var _price =
-                                              double.parse(itemPrices[index]);
-                                          orderProvider.addList(
-                                            ItemList(
-                                              title: itemNames[index],
-                                              image: providers[index],
-                                              price: _price,
-                                              itemCount: 1,
-                                            ),
-                                            _price,
-                                          );
-                                        },
+                                      final callback = () {
+                                        setState(() {
+                                          itemNames?.removeAt(index);
+                                          itemPrices?.removeAt(index);
+                                          providers?.removeAt(index);
+                                          currentOrderIdx--;
+                                        });
+                                      };
+                                      return Product(
+                                        callback: callback,
+                                        image: providers[index],
+                                        title: itemNames[index],
+                                        price: itemPrices[index],
                                       );
                                     },
                                     childCount: itemNames.length,
@@ -811,6 +832,7 @@ class MainPageState extends State<MainPage> {
                                   ),
                                   _AddItemField(
                                     "Item name",
+                                    keyboardType: TextInputType.text,
                                     callback: (name) {
                                       itemName = name;
                                     },
@@ -821,6 +843,7 @@ class MainPageState extends State<MainPage> {
                                   ),
                                   _AddItemField(
                                     "Price",
+                                    keyboardType: TextInputType.number,
                                     callback: (price) {
                                       itemPrice = price;
                                     },
@@ -838,13 +861,13 @@ class MainPageState extends State<MainPage> {
                                       padding: EdgeInsets.all(10.0),
                                       child: !providers
                                               .asMap()
-                                              .containsKey(imageIdx)
+                                              .containsKey(currentOrderIdx)
                                           ? Image.asset(
                                               'assets/cloud-computing.png',
                                               width: 280.0,
                                             )
                                           : Image(
-                                              image: providers[imageIdx],
+                                              image: providers[currentOrderIdx],
                                               width: 280.0,
                                             ),
                                       onPressed: () async {
@@ -855,16 +878,26 @@ class MainPageState extends State<MainPage> {
                                         if (result != null) {
                                           String filePath =
                                               result.files.single.path;
-                                          var _cmpressed_image;
-                                          _cmpressed_image =
+                                          var cmpressedImage;
+                                          cmpressedImage =
                                               await FlutterImageCompress
                                                   .compressWithFile(filePath,
                                                       format:
                                                           CompressFormat.jpeg,
                                                       quality: 70);
+                                          if (providers
+                                              .asMap()
+                                              .containsKey(currentOrderIdx)) {
+                                            setState(() {
+                                              // 전에꺼 지우고 추가
+                                              providers
+                                                  .removeAt(currentOrderIdx);
+                                            });
+                                          }
                                           setState(() {
                                             providers.add(
-                                                MemoryImage(_cmpressed_image));
+                                              MemoryImage(cmpressedImage),
+                                            );
                                           });
                                         } else {
                                           // User canceled the picker
@@ -884,35 +917,10 @@ class MainPageState extends State<MainPage> {
                                         padding: EdgeInsets.fromLTRB(
                                             20.0, 15.0, 20.0, 15.0),
                                         onPressed: () {
-                                          if (imageIdx == 5) {
-                                            showDialog(
-                                              context: context,
-                                              builder: (BuildContext context) {
-                                                return AlertDialog(
-                                                  title: Text(
-                                                    'Alert!',
-                                                  ),
-                                                  content: Text(
-                                                    "No more items can be added. Please contact customer service.",
-                                                  ),
-                                                  actions: [
-                                                    FlatButton(
-                                                      child: Text('OK'),
-                                                      onPressed: () {
-                                                        leftPageIdx = 0;
-                                                        Navigator.pop(
-                                                          context,
-                                                          "OK",
-                                                        );
-                                                      },
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                          } else if (orderProvider.itemList
-                                                  .where((_item) => _item.title
-                                                      .contains(itemName))
+                                          if (currentOrderIdx == 5) {
+                                          } else if (itemNames
+                                                  .where((_itemName) =>
+                                                      _itemName == itemName)
                                                   .toList()
                                                   .length !=
                                               0) {
@@ -930,9 +938,8 @@ class MainPageState extends State<MainPage> {
                                                     FlatButton(
                                                       child: Text('OK'),
                                                       onPressed: () {
-                                                        Navigator.pop(
-                                                          context,
-                                                        );
+                                                        Navigator.of(context)
+                                                            .pop();
                                                       },
                                                     ),
                                                   ],
@@ -943,18 +950,17 @@ class MainPageState extends State<MainPage> {
                                               itemName.length != 0 &&
                                               itemPrice != '' &&
                                               itemPrice.length != 0 &&
-                                              providers
-                                                  .asMap()
-                                                  .containsKey(imageIdx)) {
+                                              providers.asMap().containsKey(
+                                                  currentOrderIdx)) {
                                             setState(() {
                                               itemNames.add(itemName);
                                               itemPrices.add(itemPrice);
+                                              currentOrderIdx++;
                                               itemName = '';
                                               _itemNameController.clear();
                                               itemPrice = '';
                                               _itemPriceController.clear();
                                               leftPageIdx = 0;
-                                              imageIdx++;
                                             });
                                           } else {
                                             showDialog(
@@ -983,6 +989,47 @@ class MainPageState extends State<MainPage> {
                                         },
                                         child: Text(
                                           "OK",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 20.0,
+                                          ).copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 10.0,
+                                  ),
+                                  SizedBox(
+                                    width: 300.0,
+                                    child: Material(
+                                      elevation: 5.0,
+                                      borderRadius: BorderRadius.circular(30.0),
+                                      color: Colors.blueGrey,
+                                      child: MaterialButton(
+                                        minWidth:
+                                            MediaQuery.of(context).size.width,
+                                        padding: EdgeInsets.fromLTRB(
+                                            20.0, 15.0, 20.0, 15.0),
+                                        onPressed: () {
+                                          setState(() {
+                                            if (providers
+                                                .asMap()
+                                                .containsKey(currentOrderIdx)) {
+                                              providers
+                                                  .removeAt(currentOrderIdx);
+                                            }
+                                            itemName = '';
+                                            _itemNameController.clear();
+                                            itemPrice = '';
+                                            _itemPriceController.clear();
+                                            leftPageIdx = 0;
+                                          });
+                                        },
+                                        child: Text(
+                                          "Cancel",
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: 20.0,
@@ -1296,6 +1343,10 @@ class MainPageState extends State<MainPage> {
                                                   rightPageIdx = 1;
                                                 } else if (rightPageIdx == 20) {
                                                   rightPageIdx = 19;
+                                                  isMainMenu = false;
+                                                } else if (rightPageIdx == 21) {
+                                                  rightPageIdx = 20;
+                                                  isMainMenu = false;
                                                 }
                                               });
                                             },
@@ -1460,18 +1511,16 @@ class MainPageState extends State<MainPage> {
                                                 'POS printer is not connected'),
                                             content: Text(
                                                 "You can simply bond your pos printer by visiting hardware page."),
-                                            actions: <Widget>[
+                                            actions: [
                                               FlatButton(
                                                 child: Text('OK'),
                                                 onPressed: () {
-                                                  Navigator.pop(context, "OK");
-                                                },
-                                              ),
-                                              FlatButton(
-                                                child: Text('Cancel'),
-                                                onPressed: () {
                                                   Navigator.pop(
-                                                      context, "Cancel");
+                                                    context,
+                                                  );
+                                                  setState(() {
+                                                    rightPageIdx = 15;
+                                                  });
                                                 },
                                               ),
                                             ],
@@ -1548,8 +1597,8 @@ class MainPageState extends State<MainPage> {
                             child: TickerMode(
                               enabled: rightPageIdx == 18,
                               child: OrderPage(
-                                () {
-                                  _printReceiptOnOrderPage();
+                                (order, _useCash, _promotion) {
+                                  _printReceiptOnOrderPage(order, _useCash, _promotion);
                                 },
                                 orderForRenderIdx: orderForRenderIdx,
                               ),
@@ -1561,8 +1610,8 @@ class MainPageState extends State<MainPage> {
                             child: TickerMode(
                               enabled: rightPageIdx == 19,
                               child: PaymentPage(
-                                (_isCashPage) async {
-                                  if (_isCashPage) {
+                                (_willUseCash) async {
+                                  if (_willUseCash) {
                                     await showDialog(
                                         context: context,
                                         builder: (BuildContext context) {
@@ -1571,8 +1620,11 @@ class MainPageState extends State<MainPage> {
                                               children: [
                                                 Expanded(
                                                   child: TextField(
+                                                    keyboardType:
+                                                        TextInputType.number,
                                                     onChanged: (val) {
-                                                      cashGet = double.parse(val);
+                                                      cashGet =
+                                                          double.parse(val);
                                                     },
                                                     autofocus: true,
                                                     decoration: InputDecoration(
@@ -1592,21 +1644,74 @@ class MainPageState extends State<MainPage> {
                                             ],
                                           );
                                         }).then(
-                                      (cash) => setState(() {
-                                        rightPageIdx = 20;
-                                        isMainMenu = false;
-                                        isCashPage = _isCashPage;
+                                      (_) => setState(() {
+                                        final _promo = promotion ? 20 : 0;
+                                        if (cashGet + _promo <
+                                            orderProvider.price) {
+                                          showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text('Alert!'),
+                                                  content: Text(
+                                                    "Please pay more than the total price.",
+                                                  ),
+                                                  actions: [
+                                                    FlatButton(
+                                                      child: Text('OK'),
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                            context, "OK");
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              });
+                                        } else {
+                                          rightPageIdx = 20;
+                                          isMainMenu = false;
+                                          willUseCash = _willUseCash;
+                                        }
                                       }),
                                     );
                                   } else {
                                     setState(() {
                                       rightPageIdx = 20;
                                       isMainMenu = false;
-                                      isCashPage = _isCashPage;
+                                      willUseCash = _willUseCash;
                                     });
                                   }
                                 },
                                 price: orderProvider.price,
+                                promotion: orderProvider.price < 20
+                                    ? false
+                                    : promotion,
+                                willPromo: (_promo) {
+                                  if (orderProvider.price < 20) {
+                                    showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text('Alert!'),
+                                            content: Text(
+                                              "Promotion cannot be applied since total price is less than \$20.",
+                                            ),
+                                            actions: [
+                                              FlatButton(
+                                                child: Text('OK'),
+                                                onPressed: () {
+                                                  Navigator.pop(context, "OK");
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        });
+                                  } else {
+                                    setState(() {
+                                      promotion = _promo;
+                                    });
+                                  }
+                                },
                               ),
                             ),
                           ),
@@ -1634,6 +1739,9 @@ class MainPageState extends State<MainPage> {
                                       itemList:
                                           List.from(orderProvider.itemList),
                                       orderNo: orderProvider.orderNo,
+                                      cash: willUseCash,
+                                      cashGet: cashGet,
+                                      promotion: promotion,
                                     ),
                                   );
                                   orderProvider.clearListItem();
@@ -1643,12 +1751,29 @@ class MainPageState extends State<MainPage> {
                                     isMainMenu = true;
                                   });
                                 },
+                                () {
+                                  setState(() {
+                                    rightPageIdx = 21;
+                                  });
+                                },
                                 orderProvider.price,
-                                isCashPage: isCashPage,
+                                willUseCash: willUseCash,
                                 cashGet: cashGet,
+                                promotion: promotion,
                               ),
                             ),
-                          )
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 21,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 21,
+                              child: Receipt(
+                                willUseCash,
+                                cashGet,
+                                promotion,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                 floatingActionButton: rightPageIdx == 0
@@ -1656,30 +1781,33 @@ class MainPageState extends State<MainPage> {
                         key: subTotalButton,
                         height: 50.0,
                         width: 330,
-                        child: FloatingActionButton.extended(
-                          heroTag: 'btn1',
-                          onPressed: () {
-                            setState(() {
-                              rightPageIdx = 19;
-                              isMainMenu = false;
-                            });
-                          },
-                          backgroundColor: Colors.deepPurpleAccent,
-                          label: IntrinsicHeight(
-                            child: Center(
-                              child: Consumer<OrderProvider>(
-                                builder: (context, provider, _) => Text(
-                                  "SUB TOTAL \$${provider.price}0",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 18.0,
-                                    color: Colors.white,
+                        child: Transform(
+                          transform: Matrix4.translationValues(10, 0, 0),
+                          child: FloatingActionButton.extended(
+                            heroTag: 'btn1',
+                            onPressed: () {
+                              setState(() {
+                                rightPageIdx = 19;
+                                isMainMenu = false;
+                              });
+                            },
+                            backgroundColor: Colors.deepPurpleAccent,
+                            label: IntrinsicHeight(
+                              child: Center(
+                                child: Consumer<OrderProvider>(
+                                  builder: (context, provider, _) => Text(
+                                    "SUB TOTAL \$${provider.price}0",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 18.0,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
+                            shape: RoundedRectangleBorder(),
                           ),
-                          shape: RoundedRectangleBorder(),
                         ),
                       )
                     : null,
@@ -1748,8 +1876,6 @@ class __OrderListState extends State<_OrderList> {
     'December',
   ];
 
-  // TODO: date에 따라 필터링 구현
-
   _parseDate(date) {
     return "${month[date.month - 1]} ${date.day}, ${date.year}";
   }
@@ -1771,6 +1897,7 @@ class __OrderListState extends State<_OrderList> {
           ),
         ),
         Expanded(
+          flex: 11,
           child: Container(
             width: MediaQuery.of(context).size.width,
             decoration: BoxDecoration(
@@ -1823,6 +1950,18 @@ class __OrderListState extends State<_OrderList> {
             ),
           ),
         ),
+        Expanded(
+          child: MaterialButton(
+            child: Center(
+              child: Text(
+                "Export orders",
+              ),
+            ),
+            onPressed: () {
+              orderProvider.exportAsPdf();
+            },
+          ),
+        )
       ],
     );
   }
@@ -1838,13 +1977,18 @@ class Order extends StatelessWidget {
   final List itemList;
   final totalPrice;
   final orderNo;
-
-  // final title;
-  // final price;
-  // final itemCount;
+  bool cash = false;
+  final double cashGet;
+  final bool promotion;
 
   Order(this.callback,
-      {this.date, this.itemList, this.totalPrice, this.orderNo});
+      {this.date,
+      this.itemList,
+      this.totalPrice,
+      this.orderNo,
+      this.cash,
+      this.cashGet,
+      this.promotion});
 
   _parseDate() {
     final hour = date.hour > 12 ? date.hour - 12 : date.hour;
@@ -1958,8 +2102,10 @@ class _AddItemField extends StatelessWidget {
   final title;
   final callback;
   final controller;
+  final keyboardType;
 
-  _AddItemField(this.title, {this.callback, this.controller});
+  _AddItemField(this.title,
+      {this.callback, this.controller, this.keyboardType});
 
   @override
   Widget build(BuildContext context) {
@@ -1972,6 +2118,7 @@ class _AddItemField extends StatelessWidget {
           horizontal: 10.0,
         ),
         child: TextField(
+          keyboardType: keyboardType,
           controller: controller,
           decoration: InputDecoration(
             hintText: title,
@@ -2221,6 +2368,375 @@ class ItemList extends StatelessWidget {
               )),
         ),
         Divider(),
+      ],
+    );
+  }
+}
+
+class Product extends StatelessWidget {
+  final callback;
+  final image;
+  final price;
+  final title;
+
+  Product({this.callback, this.image, this.price, this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      child: Container(
+        color: Colors.grey[200],
+        width: 80,
+        child: Center(
+          child: Align(
+            alignment: Alignment.center,
+            child: Image(
+              image: image,
+            ),
+          ),
+        ),
+      ),
+      onTap: () {
+        var _price = double.parse(price);
+        print(price);
+        print(title);
+        orderProvider.addList(
+          ItemList(
+            title: title,
+            image: image,
+            price: _price,
+            itemCount: 1,
+          ),
+          _price,
+        );
+      },
+      onLongPress: callback,
+    );
+  }
+}
+
+class Receipt extends StatelessWidget {
+  final divider = Text(
+    "----------------------------------------------",
+    style: TextStyle(letterSpacing: 2.5),
+  );
+
+  final bool willUseCash;
+  final cashGet;
+  final bool promotion;
+  GlobalKey scr = GlobalKey();
+
+  Receipt(this.willUseCash, this.cashGet, this.promotion);
+
+  _renderDate() =>
+      "${DateTime.now().toString().split(' ')[0]} ${DateTime.now().toString().split(' ')[1].split('.')[0]}";
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          flex: 10,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: Align(
+              alignment: Alignment.center,
+              child: RepaintBoundary(
+                key: scr,
+                child: Container(
+                  color: Colors.white,
+                  width: MediaQuery.of(context).size.width / 3 - 20,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: 20.0,
+                      horizontal: 20.0,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "GAVIN INNOVATION",
+                          style: TextStyle(fontSize: 25),
+                        ),
+                        Text(
+                          "Receipt",
+                          style: TextStyle(
+                              fontSize: 20, letterSpacing: 5.0, height: 2.0),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Address:",
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "[POS 01]",
+                                  ),
+                                  Text(
+                                    _renderDate(),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                        divider,
+                        orderProvider?.itemList?.length != 0
+                            ? Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Item name",
+                                    textAlign: TextAlign.start,
+                                  ),
+                                  Text("PPU"),
+                                  Text("#"),
+                                  Text("Total price")
+                                ],
+                              )
+                            : Container(),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: orderProvider?.itemList?.length ?? 0,
+                          itemBuilder: (context, index) {
+                            final price =
+                                orderProvider.itemList.elementAt(index).price;
+                            final itemCount = orderProvider.itemList
+                                .elementAt(index)
+                                .itemCount;
+                            final subTotalPrice = price * itemCount;
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  orderProvider.itemList.elementAt(index).title,
+                                ),
+                                Text("\$${price}0"),
+                                Text(itemCount.toString()),
+                                Text("\$${subTotalPrice.toString()}0"),
+                              ],
+                            );
+                          },
+                        ),
+                        orderProvider?.itemList?.length != 0
+                            ? divider
+                            : Container(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Subtotal",
+                            ),
+                            Text("\$${orderProvider.price}0"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Net Amount",
+                            ),
+                            Text("\$${orderProvider.price * 0.9}0"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Tax",
+                            ),
+                            Text("\$${orderProvider.price * 0.1}0"),
+                          ],
+                        ),
+                        divider,
+                        promotion
+                            ? Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Promotion",
+                                      ),
+                                      Text("\$20.00"),
+                                    ],
+                                  ),
+                                  divider,
+                                ],
+                              )
+                            : Container(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Total",
+                            ),
+                            Text(
+                              "\$${promotion ? orderProvider.price - 20 : orderProvider.price}0",
+                            ),
+                          ],
+                        ),
+                        divider,
+                        willUseCash
+                            ? Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Cash :",
+                                      ),
+                                      Text("\$${cashGet.toString()}0"),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Charge due:",
+                                      ),
+                                      Text(
+                                        "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Card :",
+                                      ),
+                                      Text("MasterCard"),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Membership No. : ",
+                                      ),
+                                      Text("96641334156***"),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Card Approval No. : ",
+                                      ),
+                                      Text("20201120112005123"),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Affiliate No. : ",
+                                      ),
+                                      Text("3230"),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                        divider,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Membership Credit :",
+                            ),
+                            Text("\$0.99"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Membership Card No. :",
+                            ),
+                            Text("**********6912"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Approval No: 577145",
+                            ),
+                            Text("Balance: \$0.00"),
+                          ],
+                        ),
+                        divider,
+                        Text(
+                          "Please Charge your card since your balance is \$0.00",
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "My reward (GB29**)",
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "My coupon No: 1590230415049",
+                          ),
+                        ),
+                        divider,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: SizedBox.expand(
+            child: RaisedButton(
+              child: Text("Email receipt"),
+              onPressed: () async {
+                RenderRepaintBoundary boundary =
+                    scr.currentContext.findRenderObject();
+                final directory = (await pp.getExternalStorageDirectory()).path;
+                var image = await boundary.toImage();
+                var byteData =
+                    await image.toByteData(format: ImageByteFormat.png);
+                var pngBytes = byteData.buffer.asUint8List();
+                File imgFile = File('$directory/receipt.png');
+                imgFile.writeAsBytes(pngBytes);
+
+                final Email email = Email(
+                  body: 'Receipt',
+                  subject: 'Receipt',
+                  recipients: ['tedjung@ciousya.com'],
+                  attachmentPaths: ['$directory/receipt.png'],
+                  isHTML: false,
+                );
+
+                await FlutterEmailSender.send(email);
+              },
+            ),
+          ),
+        )
       ],
     );
   }

@@ -241,7 +241,7 @@ class ScanCode extends StatelessWidget {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Text(
-                "Need help paring?\nVisit the Gabin Help Center.",
+                "Need help paring?\nVisit the Gavin Help Center.",
                 textAlign: TextAlign.center,
               ),
             ),
@@ -350,7 +350,7 @@ class DummyPage extends StatelessWidget {
                     text: TextSpan(children: <TextSpan>[
                       TextSpan(
                         text:
-                            "To use this device, you need to enable Gabin Payments on your store. ",
+                            "To use this device, you need to enable Gavin Payments on your store. ",
                         style: TextStyle(
                           color: Colors.black54,
                           fontSize: 15.0,

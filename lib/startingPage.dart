@@ -24,11 +24,9 @@ class _StartingPageState extends State<StartingPage> {
             width: double.infinity,
             alignment: Alignment.center,
           ),
-          _LoginForm(
-              () {
-                Navigator.pushNamed(context, MainPage.id);
-              }
-          ),
+          _LoginForm(() {
+            Navigator.pushNamed(context, MainPage.id);
+          }),
         ],
       ),
     );
@@ -37,7 +35,9 @@ class _StartingPageState extends State<StartingPage> {
 
 class _LoginForm extends StatefulWidget {
   Function callback;
+
   _LoginForm(this.callback);
+
   @override
   __LoginFormState createState() => __LoginFormState();
 }
@@ -196,6 +196,13 @@ class __LoginFormState extends State<_LoginForm> {
                 ),
               )
             : Container(),
+        Align(
+          alignment: Alignment.bottomLeft,
+          child: Text(
+            "v1.0.0",
+            style: TextStyle(fontSize: 15.0),
+          ),
+        )
       ],
     );
   }

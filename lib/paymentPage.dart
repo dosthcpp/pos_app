@@ -4,14 +4,16 @@ import 'package:pos_app/main_page.dart';
 class PaymentPage extends StatelessWidget {
   final Function callback;
   final price;
-
+  bool promotion;
+  final Function willPromo;
   static final GlobalKey paymentButton = GlobalKey();
 
-  PaymentPage(this.callback,{this.price});
+  PaymentPage(this.callback, {this.price, this.promotion, this.willPromo});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Padding(
         padding: EdgeInsets.symmetric(
           vertical: 20.0,
@@ -29,8 +31,15 @@ class PaymentPage extends StatelessWidget {
               "\$${price}0",
               style: TextStyle(fontSize: 45.0),
             ),
-            SizedBox(
-              height: 20.0,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("\$20 Promotion?"),
+                Switch(
+                  value: promotion,
+                  onChanged: willPromo,
+                ),
+              ],
             ),
             Column(
               children: [
@@ -38,7 +47,7 @@ class PaymentPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      key: paymentButton,
+                      key: PaymentPage.paymentButton,
                       child: _PaymentMethod(
                         title: "Credit",
                         imageUrl: 'assets/credit-card.png',
@@ -60,7 +69,7 @@ class PaymentPage extends StatelessWidget {
                             return AlertDialog(
                               title: Text('Alert!'),
                               content:
-                                  Text("No connection. Please check again."),
+                              Text("No connection. Please check again."),
                               actions: <Widget>[
                                 FlatButton(
                                   child: Text('OK'),
@@ -122,6 +131,7 @@ class PaymentPage extends StatelessWidget {
       ),
     );
   }
+
 }
 
 class _PaymentMethod extends StatelessWidget {
