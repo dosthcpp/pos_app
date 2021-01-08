@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:async';
 import 'dart:typed_data';
@@ -52,12 +53,17 @@ class MainPageState extends State<MainPage> {
   int orderTitleIdx = 0;
 
   List<ImageProvider> providers = [];
+
+  // title: encodedImage
+  Map<String, String> base64EncodedImages = {};
   String itemName = '';
   List<String> itemNames = [];
   TextEditingController _itemNameController = TextEditingController();
   String itemPrice = '';
   List<String> itemPrices = [];
   TextEditingController _itemPriceController = TextEditingController();
+  int functionSnapshotIdx = 0;
+  List<Function> functionSnapshot = List<Function>(2048);
 
   int orderForRenderIdx = 0;
 
@@ -86,9 +92,12 @@ class MainPageState extends State<MainPage> {
   @override
   void initState() {
     orderProvider.initDate();
-    _showDialog();
+    _loadData();
+    _initFunctionSnapshot();
+    orderProvider.loadData(functionSnapshot);
     initPlatformState();
     initTargets();
+    _showDialog();
   }
 
   _selectDate(help, initialDate) async {
@@ -536,7 +545,10 @@ class MainPageState extends State<MainPage> {
           bluetooth.printCustom("----------------------------", 1, 1);
           if (willUseCash) {
             bluetooth.printLeftRight("Cash :", "\$$cashGet", 1);
-            bluetooth.printLeftRight("Charge due :", "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}", 1);
+            bluetooth.printLeftRight(
+                "Charge due :",
+                "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}",
+                1);
             bluetooth.printCustom("----------------------------", 1, 1);
           } else {
             bluetooth.printLeftRight("Card", "MasterCard", 1);
@@ -567,7 +579,7 @@ class MainPageState extends State<MainPage> {
 
   void _printReceiptOnOrderPage(order, _useCash, _promotion) async {
     bluetooth.isConnected.then(
-          (isConnected) {
+      (isConnected) {
         if (isConnected) {
           bluetooth.printCustom("GAVIN INNOVATION", 3, 1);
           bluetooth.printNewLine();
@@ -602,7 +614,10 @@ class MainPageState extends State<MainPage> {
           bluetooth.printCustom("----------------------------", 1, 1);
           if (willUseCash) {
             bluetooth.printLeftRight("Cash :", "\$${order.cashGet}", 1);
-            bluetooth.printLeftRight("Charge due :", "${order.promotion ? "\$${-(order.totalPrice - order.cashGet - 20) == -0 ? 0.0 : -(order.totalPrice - order.cashGet - 20.0)}0" : "\$${order.cashGet - order.totalPrice}0"}", 1);
+            bluetooth.printLeftRight(
+                "Charge due :",
+                "${order.promotion ? "\$${-(order.totalPrice - order.cashGet - 20) == -0 ? 0.0 : -(order.totalPrice - order.cashGet - 20.0)}0" : "\$${order.cashGet - order.totalPrice}0"}",
+                1);
             bluetooth.printCustom("----------------------------", 1, 1);
           } else {
             bluetooth.printLeftRight("Card", "MasterCard", 1);
@@ -688,6 +703,64 @@ class MainPageState extends State<MainPage> {
         return "Order complete";
       case 21:
         return "Receipt";
+    }
+  }
+
+  _refresh() async {
+    String jsonString = "["
+        "{";
+    if (itemNames.length == 0) {
+      jsonString += "}]";
+    } else {
+      for (var i = 0; i < itemNames.length; ++i) {
+        jsonString +=
+            '"itemName": "${itemNames.elementAt(i)}", "itemPrice": "${itemPrices.elementAt(i)}", "image": "${base64EncodedImages[itemNames.elementAt(i)]}"}';
+        if (i != itemNames.length - 1) {
+          jsonString += ",{";
+        }
+      }
+      jsonString += "]";
+    }
+    final directory = await pp.getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/product.json');
+    await file.writeAsString(jsonString);
+  }
+
+  _loadData() async {
+    Future.delayed(Duration.zero, () async{
+      final file = File(
+          '${(await pp.getApplicationDocumentsDirectory()).path}/product.json');
+      if(!file.existsSync()) return;
+      String data = await file.readAsString();
+      List<dynamic> jsonResult = json.decode(data);
+      if (data == "[{}]" && jsonResult[0].length == 0) {
+        itemNames = [];
+        itemPrices = [];
+        providers = [];
+        base64EncodedImages = {};
+        currentOrderIdx = 0;
+      } else {
+        jsonResult.forEach((item) {
+          itemNames.add(item['itemName']);
+          itemPrices.add(item['itemPrice']);
+          base64EncodedImages[item['itemName']] = item['image'];
+          providers.add(MemoryImage(base64Decode(item['image'])));
+        });
+        currentOrderIdx = itemNames.length;
+      }
+    });
+  }
+
+  _initFunctionSnapshot() {
+    for(int i = 0 ; i < 2048; ++i) {
+      functionSnapshot[i] = (idx) {
+        setState(() {
+          rightPageIdx = 18;
+          isMainMenu = false;
+          orderForRenderIdx = idx;
+          orderTitleIdx = idx;
+        });
+      };
     }
   }
 
@@ -789,19 +862,22 @@ class MainPageState extends State<MainPage> {
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
-                                      final callback = () {
+                                      final onLongPress = () {
                                         setState(() {
+                                          base64EncodedImages?.remove(
+                                              itemNames.elementAt(index));
                                           itemNames?.removeAt(index);
                                           itemPrices?.removeAt(index);
                                           providers?.removeAt(index);
                                           currentOrderIdx--;
                                         });
+                                        _refresh();
                                       };
                                       return Product(
-                                        callback: callback,
-                                        image: providers[index],
-                                        title: itemNames[index],
-                                        price: itemPrices[index],
+                                        onLongPress: onLongPress,
+                                        title: itemNames?.elementAt(index),
+                                        price: itemPrices?.elementAt(index),
+                                        image: providers?.elementAt(index),
                                       );
                                     },
                                     childCount: itemNames.length,
@@ -878,13 +954,13 @@ class MainPageState extends State<MainPage> {
                                         if (result != null) {
                                           String filePath =
                                               result.files.single.path;
-                                          var cmpressedImage;
-                                          cmpressedImage =
+                                          Uint8List cmpressedImage =
                                               await FlutterImageCompress
                                                   .compressWithFile(filePath,
                                                       format:
                                                           CompressFormat.jpeg,
                                                       quality: 70);
+
                                           if (providers
                                               .asMap()
                                               .containsKey(currentOrderIdx)) {
@@ -894,6 +970,8 @@ class MainPageState extends State<MainPage> {
                                                   .removeAt(currentOrderIdx);
                                             });
                                           }
+                                          base64EncodedImages[itemName] =
+                                              base64Encode(cmpressedImage);
                                           setState(() {
                                             providers.add(
                                               MemoryImage(cmpressedImage),
@@ -916,7 +994,7 @@ class MainPageState extends State<MainPage> {
                                             MediaQuery.of(context).size.width,
                                         padding: EdgeInsets.fromLTRB(
                                             20.0, 15.0, 20.0, 15.0),
-                                        onPressed: () {
+                                        onPressed: () async {
                                           if (currentOrderIdx == 5) {
                                           } else if (itemNames
                                                   .where((_itemName) =>
@@ -962,6 +1040,7 @@ class MainPageState extends State<MainPage> {
                                               _itemPriceController.clear();
                                               leftPageIdx = 0;
                                             });
+                                            _refresh();
                                           } else {
                                             showDialog(
                                               context: context,
@@ -1020,6 +1099,8 @@ class MainPageState extends State<MainPage> {
                                                 .containsKey(currentOrderIdx)) {
                                               providers
                                                   .removeAt(currentOrderIdx);
+                                              base64EncodedImages.remove(
+                                                  itemNames[currentOrderIdx]);
                                             }
                                             itemName = '';
                                             _itemNameController.clear();
@@ -1491,7 +1572,18 @@ class MainPageState extends State<MainPage> {
                             offstage: rightPageIdx != 12,
                             child: TickerMode(
                               enabled: rightPageIdx == 12,
-                              child: Settings(),
+                              child: Settings(
+                                resetAll: () {
+                                  setState(() {
+                                    itemNames = [];
+                                    itemPrices = [];
+                                    providers = [];
+                                    base64EncodedImages = {};
+                                    currentOrderIdx = 0;
+                                    _loadData();
+                                  });
+                                },
+                              ),
                             ),
                           ),
                           Offstage(
@@ -1598,7 +1690,8 @@ class MainPageState extends State<MainPage> {
                               enabled: rightPageIdx == 18,
                               child: OrderPage(
                                 (order, _useCash, _promotion) {
-                                  _printReceiptOnOrderPage(order, _useCash, _promotion);
+                                  _printReceiptOnOrderPage(
+                                      order, _useCash, _promotion);
                                 },
                                 orderForRenderIdx: orderForRenderIdx,
                               ),
@@ -1721,11 +1814,11 @@ class MainPageState extends State<MainPage> {
                               enabled: rightPageIdx == 20,
                               child: PaymentResult(
                                 () => _printReceipt(),
-                                () {
+                                () async {
                                   // DONE 누르면
                                   orderProvider.addOrder(
                                     Order(
-                                      (idx) {
+                                      functionSnapshot[functionSnapshotIdx++] = (idx) {
                                         setState(() {
                                           rightPageIdx = 18;
                                           isMainMenu = false;
@@ -1742,6 +1835,7 @@ class MainPageState extends State<MainPage> {
                                       cash: willUseCash,
                                       cashGet: cashGet,
                                       promotion: promotion,
+                                      // base64EncodedImages에서 찾아서 image 리스트 넘기기
                                     ),
                                   );
                                   orderProvider.clearListItem();
@@ -1750,6 +1844,7 @@ class MainPageState extends State<MainPage> {
                                     rightPageIdx = 0;
                                     isMainMenu = true;
                                   });
+                                  await orderProvider.refresh(Map.from(base64EncodedImages));
                                 },
                                 () {
                                   setState(() {
@@ -2275,7 +2370,6 @@ class _StorePage extends StatelessWidget {
 class ItemList extends StatelessWidget {
   // final String imageUrl;
   final ImageProvider image;
-
   final String title;
   final double price;
   int itemCount;
@@ -2374,12 +2468,12 @@ class ItemList extends StatelessWidget {
 }
 
 class Product extends StatelessWidget {
-  final callback;
+  final onLongPress;
   final image;
   final price;
   final title;
 
-  Product({this.callback, this.image, this.price, this.title});
+  Product({this.onLongPress, this.image, this.price, this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -2398,8 +2492,6 @@ class Product extends StatelessWidget {
       ),
       onTap: () {
         var _price = double.parse(price);
-        print(price);
-        print(title);
         orderProvider.addList(
           ItemList(
             title: title,
@@ -2410,7 +2502,7 @@ class Product extends StatelessWidget {
           _price,
         );
       },
-      onLongPress: callback,
+      onLongPress: onLongPress,
     );
   }
 }

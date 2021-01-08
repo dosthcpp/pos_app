@@ -31,6 +31,7 @@ dependencies:
   flutter_email_sender: ^4.0.0
   pdf: ^1.13.0
   marquee: ^1.6.1
+  flutter_phoenix: ^0.1.0
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_phoenix/flutter_phoenix.dart';
+import 'package:pos_app/main.dart';
 
 class Settings extends StatefulWidget {
   static const id = 'settings';
+  final Function resetAll;
+
+  Settings({this.resetAll});
 
   @override
   _SettingsState createState() => _SettingsState();
@@ -145,6 +150,90 @@ class _SettingsState extends State<Settings> {
                               _willWebviewDebug = value;
                             });
                           },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 15.0,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey,
+                    offset: Offset(0.0, 1.0), //(x,y)
+                    blurRadius: 6.0,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Wipe all data",
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 15.0,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 30.0,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                "Wipe all data",
+                                style: TextStyle(
+                                  fontSize: 20.0,
+                                  color: Colors.red
+                                ),
+                              ),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text(
+                                      'Alert!',
+                                    ),
+                                    content: Text(
+                                      "Are you sure you will delete all data? Saved data will be wiped and app will restart.",
+                                    ),
+                                    actions: [
+                                      FlatButton(
+                                        child: Text('Cancel'),
+                                        onPressed: () {
+                                          Navigator.of(context)
+                                              .pop();
+                                        },
+                                      ),
+                                      FlatButton(
+                                        child: Text('OK'),
+                                        onPressed: () {
+                                          orderProvider.deleteAndReset();
+                                          widget.resetAll();
+                                          Phoenix.rebirth(context);
+                                        },
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
