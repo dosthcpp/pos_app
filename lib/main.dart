@@ -6,12 +6,6 @@ import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:pos_app/main_page.dart';
 import 'package:pos_app/startingPage.dart';
-import 'package:pos_app/storePage/apps.dart';
-import 'package:pos_app/storePage/hardware.dart';
-import 'package:pos_app/storePage/location.dart';
-import 'package:pos_app/storePage/payment.dart';
-import 'package:pos_app/storePage/settings.dart';
-import 'package:pos_app/storePage/tips.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -46,8 +40,12 @@ class OrderProvider extends ChangeNotifier {
   List<Order> orders = [];
   List<Order> filteredOrder = [];
 
+  List<ItemInPurchase> purchaseList = [];
+
   double price = 0.0;
   int orderNo = 1001;
+  double balance = 0.0;
+  double purchaseTotalPrice = 0.0;
 
   DateTime startDatePicked;
   DateTime endDatePicked;
@@ -64,8 +62,10 @@ class OrderProvider extends ChangeNotifier {
     final directory = await pp.getApplicationDocumentsDirectory();
     final file = File('${directory.path}/orders.json');
     final file2 = File('${directory.path}/product.json');
+    final file3 = File('${directory.path}/balance.txt');
     await file.delete();
     await file2.delete();
+    await file3.delete();
     await file.writeAsString('[{}]');
     await file2.writeAsString('[{}]');
   }
@@ -73,8 +73,10 @@ class OrderProvider extends ChangeNotifier {
   reset() {
     orders.clear();
     filteredOrder.clear();
+    purchaseList.clear();
     itemList.clear();
     orderNo = 1001;
+    balance = 0.0;
     notifyListeners();
   }
 
@@ -86,10 +88,10 @@ class OrderProvider extends ChangeNotifier {
   }
 
   loadData(functionSnapshot) async {
-    Future.delayed(Duration.zero, () async{
+    Future.delayed(Duration.zero, () async {
       final file = File(
           '${(await pp.getApplicationDocumentsDirectory()).path}/orders.json');
-      if(!file.existsSync()) return;
+      if (!file.existsSync()) return;
       String data = await file.readAsString();
       List<dynamic> jsonResult = json.decode(data);
       if (data == "[{}]" && jsonResult[0].length == 0) {
@@ -135,11 +137,11 @@ class OrderProvider extends ChangeNotifier {
     } else {
       for (var i = 0; i < orders.length; ++i) {
         jsonString +=
-        '"orderNo": "${orders.elementAt(i).orderNo}", "date": "${orders.elementAt(i).date}", "totalPrice": "${orders.elementAt(i).totalPrice}", "cash": "${orders.elementAt(i).cash}", "cashGet": "${orders.elementAt(i).cashGet}", "promotion": "${orders.elementAt(i).promotion}",';
+            '"orderNo": "${orders.elementAt(i).orderNo}", "date": "${orders.elementAt(i).date}", "totalPrice": "${orders.elementAt(i).totalPrice}", "cash": "${orders.elementAt(i).cash}", "cashGet": "${orders.elementAt(i).cashGet}", "promotion": "${orders.elementAt(i).promotion}",';
         jsonString += '"itemList": [';
         for (var j = 0; j < orders.elementAt(i).itemList.length; ++j) {
           jsonString +=
-          '{"image":"${base64EncodedMap[orders.elementAt(i).itemList[j].title]}", "title":"${orders.elementAt(i).itemList[j].title}", "price":"${orders.elementAt(i).itemList[j].price}", "itemCount":"${orders.elementAt(i).itemList[j].itemCount}"}';
+              '{"image":"${base64EncodedMap[orders.elementAt(i).itemList[j].title]}", "title":"${orders.elementAt(i).itemList[j].title}", "price":"${orders.elementAt(i).itemList[j].price}", "itemCount":"${orders.elementAt(i).itemList[j].itemCount}"}';
           if (j != orders.elementAt(i).itemList.length - 1) {
             jsonString += ',';
           }
@@ -186,7 +188,6 @@ class OrderProvider extends ChangeNotifier {
 
   addOrder(order) {
     orders.add(order);
-    // TODO: json 저장
     notifyListeners();
   }
 
@@ -217,21 +218,22 @@ class OrderProvider extends ChangeNotifier {
       return;
     } else if (startDatePicked.isSameDate(date)) {
       showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Alert!'),
-              content: Text("You have selected the same date."),
-              actions: [
-                FlatButton(
-                  child: Text('OK'),
-                  onPressed: () {
-                    Navigator.pop(context, "OK");
-                  },
-                ),
-              ],
-            );
-          });
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Alert!'),
+            content: Text("You have selected the same date."),
+            actions: [
+              FlatButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.pop(context, "OK");
+                },
+              ),
+            ],
+          );
+        },
+      );
     }
     startDatePicked = date;
     didModifyDate = true;
@@ -407,6 +409,62 @@ class OrderProvider extends ChangeNotifier {
 
     await FlutterEmailSender.send(email);
   }
+
+  saveBalance() async {
+    final directory = await pp.getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/balance.txt');
+    await file.writeAsString(balance.toString());
+  }
+
+  loadBalance() async {
+    final file = File(
+        '${(await pp.getApplicationDocumentsDirectory()).path}/balance.txt');
+    if (!file.existsSync()) return;
+    String data = await file.readAsString();
+    balance = double.parse(data);
+    notifyListeners();
+  }
+
+  initBalance(_bal) {
+    balance = double.parse(_bal);
+    saveBalance();
+    notifyListeners();
+  }
+
+  modifyBalance(_bal, add) async {
+    if(add) {
+      balance += _bal;
+    } else {
+      balance -= _bal;
+    }
+    saveBalance();
+    notifyListeners();
+  }
+
+  modifyPurchaseTotal(price, add) {
+    if(add) {
+      purchaseTotalPrice += price;
+    } else {
+      purchaseTotalPrice -= price;
+    }
+    notifyListeners();
+  }
+
+  clearPurchaseTotal() {
+    purchaseTotalPrice = 0.0;
+    purchaseList.clear();
+    notifyListeners();
+  }
+
+  removePurchase(idx) {
+    purchaseList.removeAt(idx);
+    notifyListeners();
+  }
+
+  addPurchase(purchase) {
+    purchaseList.add(purchase);
+    notifyListeners();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -415,19 +473,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       localizationsDelegates: [GlobalMaterialLocalizations.delegate],
       supportedLocales: [Locale('en'), Locale('kr')],
-      initialRoute: StartingPage.id,
+      initialRoute: MainPage.id,
       routes: {
         StartingPage.id: (context) => StartingPage(),
         MainPage.id: (context) => MainPage(),
-        Hardware.id: (context) => Hardware(),
-        ConnectCardReader.id: (context) => ConnectCardReader(),
-        ScanCode.id: (context) => ScanCode(),
-        DummyPage.id: (context) => DummyPage(),
-        Location.id: (context) => Location(),
-        Payment.id: (context) => Payment(),
-        Apps.id: (context) => Apps(),
-        Tips.id: (context) => Tips(),
-        Settings.id: (context) => Settings(),
       },
     );
   }
