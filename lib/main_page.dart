@@ -3,6 +3,7 @@ import 'dart:io' show File;
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:intl/intl.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,7 +14,7 @@ import 'package:pos_app/addCustomer.dart';
 import 'package:pos_app/addInventory.dart';
 import 'package:pos_app/addProduct.dart';
 import 'package:pos_app/main.dart';
-import 'package:pos_app/orderPage.dart';
+import 'package:pos_app/orderSpec.dart';
 import 'package:pos_app/paymentPage.dart';
 import 'package:pos_app/payment_result.dart';
 import 'package:pos_app/quickSale.dart';
@@ -24,8 +25,10 @@ import 'package:pos_app/storePage/payment.dart';
 import 'package:pos_app/storePage/settings.dart';
 import 'package:pos_app/storePage/support.dart';
 import 'package:pos_app/storePage/tips.dart';
+import 'package:pos_app/purchaseSpec.dart';
 
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+
 // import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -35,6 +38,8 @@ import 'package:provider/provider.dart';
 import 'package:tutorial_coach_mark/animated_focus_light.dart';
 import 'package:tutorial_coach_mark/custom_target_position.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+
+final oCcy = NumberFormat("#,##0.00", "en_US");
 
 class MainPage extends StatefulWidget {
   static const id = 'main_page';
@@ -64,6 +69,8 @@ class MainPageState extends State<MainPage> {
   TextEditingController _itemPriceController = TextEditingController();
   int functionSnapshotIdx = 0;
   List<Function> functionSnapshot = List<Function>(2048);
+  int showPurchaseSpecSnapshotIdx = 0;
+  List<Function> showPurchaseSpecSnapshot = List<Function>(2048);
 
   int orderForRenderIdx = 0;
 
@@ -74,6 +81,8 @@ class MainPageState extends State<MainPage> {
   bool promotion = false;
 
   // final scr = GlobalKey();
+
+  int purchaseRenderIdx = 0;
 
   TutorialCoachMark tutorialCoachMark;
   List<TargetFocus> targets = List();
@@ -94,7 +103,9 @@ class MainPageState extends State<MainPage> {
     orderProvider.initDate();
     _loadData();
     _initFunctionSnapshot();
-    orderProvider.loadData(functionSnapshot);
+    _initShowPurchaseSpecSnapshot();
+    orderProvider.loadOrderData(functionSnapshot);
+    orderProvider.loadPurchaseData(showPurchaseSpecSnapshot);
     initPlatformState();
     initTargets();
     orderProvider.loadBalance();
@@ -150,7 +161,7 @@ class MainPageState extends State<MainPage> {
       },
     ).then(
       (_) {
-        if(orderProvider.balance == 0.0) {
+        if (orderProvider.balance == 0.0) {
           showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -578,14 +589,14 @@ class MainPageState extends State<MainPage> {
           }
           bluetooth.printLeftRight(
               "Total",
-              "\$${promotion ? orderProvider.price - 20 : orderProvider.price}0",
+              "\$${promotion ? oCcy.format(orderProvider.price - 20) : oCcy.format(orderProvider.price)}",
               1);
           bluetooth.printCustom("----------------------------", 1, 1);
           if (willUseCash) {
             bluetooth.printLeftRight("Cash :", "\$$cashGet", 1);
             bluetooth.printLeftRight(
                 "Charge due :",
-                "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}",
+                "${promotion ? "\$${oCcy.format(-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0))}" : "\$${oCcy.format(cashGet - orderProvider.price)}"}",
                 1);
             bluetooth.printCustom("----------------------------", 1, 1);
           } else {
@@ -647,14 +658,14 @@ class MainPageState extends State<MainPage> {
           }
           bluetooth.printLeftRight(
               "Total",
-              "\$${order.promotion ? order.totalPrice - 20 : order.totalPrice}0",
+              "\$${oCcy.format(order.promotion ? order.totalPrice - 20 : order.totalPrice)}",
               1);
           bluetooth.printCustom("----------------------------", 1, 1);
           if (willUseCash) {
             bluetooth.printLeftRight("Cash :", "\$${order.cashGet}", 1);
             bluetooth.printLeftRight(
                 "Charge due :",
-                "${order.promotion ? "\$${-(order.totalPrice - order.cashGet - 20) == -0 ? 0.0 : -(order.totalPrice - order.cashGet - 20.0)}0" : "\$${order.cashGet - order.totalPrice}0"}",
+                "${order.promotion ? "\$${oCcy.format(-(order.totalPrice - order.cashGet - 20) == -0 ? 0.0 : -(order.totalPrice - order.cashGet - 20.0))}" : "\$${oCcy.format(order.cashGet - order.totalPrice)}"}",
                 1);
             bluetooth.printCustom("----------------------------", 1, 1);
           } else {
@@ -741,6 +752,10 @@ class MainPageState extends State<MainPage> {
         return "Order complete";
       case 21:
         return "Receipt";
+      case 23:
+        return "Purchase History";
+      case 24:
+        return "Purchase Summary";
     }
   }
 
@@ -797,6 +812,18 @@ class MainPageState extends State<MainPage> {
           isMainMenu = false;
           orderForRenderIdx = idx;
           orderTitleIdx = idx;
+        });
+      };
+    }
+  }
+
+  _initShowPurchaseSpecSnapshot() {
+    for (int i = 0; i < 2048; ++i) {
+      showPurchaseSpecSnapshot[i] = (idx) {
+        setState(() {
+          rightPageIdx = 24;
+          isMainMenu = false;
+          purchaseRenderIdx = idx;
         });
       };
     }
@@ -1208,45 +1235,139 @@ class MainPageState extends State<MainPage> {
                       Expanded(
                         flex: 1,
                         child: Container(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                right: 20.0,
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    "Total Balance",
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                  Consumer<OrderProvider>(
-                                    builder: (context, provider, _) {
-                                      return Text.rich(
-                                        TextSpan(
-                                          text: '\$',
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: 20.0,
+                            ),
+                            child: Consumer<OrderProvider>(
+                              builder: (context, provider, _) {
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Initial Balance",
                                           style: TextStyle(
-                                            color: provider.balance > 0
-                                                ? Colors.blue
-                                                : Colors.red,
-                                            fontSize: 15.0,
+                                            color: Colors.black54,
                                           ),
-                                          children: [
-                                            TextSpan(
-                                              text: "${provider.balance}0",
-                                              style: TextStyle(
-                                                fontSize: 21.0,
-                                              ),
-                                            ),
-                                          ],
                                         ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: '\$',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 15.0,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    "${oCcy.format(provider.initialBalance)}",
+                                                style: TextStyle(
+                                                  fontSize: 21.0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      width: 20.0,
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Order",
+                                          style: TextStyle(
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: '\$',
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontSize: 15.0,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    "${oCcy.format(provider.orderBalance)}",
+                                                style: TextStyle(
+                                                  fontSize: 21.0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      width: 20.0,
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Purchase",
+                                          style: TextStyle(
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: '\$',
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontSize: 15.0,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    "${oCcy.format(provider.purchaseBalance)}",
+                                                style: TextStyle(
+                                                  fontSize: 21.0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      width: 20.0,
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Final Balance",
+                                          style: TextStyle(
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: '\$',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 15.0,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    "${oCcy.format(provider.balance)}",
+                                                style: TextStyle(
+                                                  fontSize: 21.0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -1447,7 +1568,46 @@ class MainPageState extends State<MainPage> {
                                           ),
                                         ],
                                       )
-                                    : Container(),
+                                    : rightPageIdx == 23
+                                        ? Row(
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.calendar_today,
+                                                ),
+                                                color: Colors.black54,
+                                                onPressed: () async {
+                                                  orderProvider
+                                                      .selectPurchaseStartDate(
+                                                    context,
+                                                    await _selectDate(
+                                                      "Start date",
+                                                      orderProvider
+                                                          .startDatePickedInPurchaseList,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.calendar_today,
+                                                ),
+                                                color: Colors.black54,
+                                                onPressed: () async {
+                                                  orderProvider
+                                                      .selectPurchaseEndDate(
+                                                    context,
+                                                    await _selectDate(
+                                                      "End date",
+                                                      orderProvider
+                                                          .endDatePickedInPurchaseList,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          )
+                                        : Container(),
                           ],
                     title: rightPageIdx == 0
                         ? searchMode
@@ -1494,7 +1654,7 @@ class MainPageState extends State<MainPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Orders",
+                                        "Order History",
                                         style: TextStyle(
                                           fontSize: 17.0,
                                           fontWeight: FontWeight.bold,
@@ -1580,6 +1740,13 @@ class MainPageState extends State<MainPage> {
                                                         21) {
                                                       rightPageIdx = 20;
                                                       isMainMenu = false;
+                                                    } else if (rightPageIdx ==
+                                                        23) {
+                                                      rightPageIdx = 22;
+                                                    } else if (rightPageIdx ==
+                                                        24) {
+                                                      rightPageIdx = 23;
+                                                      isMainMenu = false;
                                                     }
                                                   });
                                                 },
@@ -1650,7 +1817,70 @@ class MainPageState extends State<MainPage> {
                             offstage: rightPageIdx != 22,
                             child: TickerMode(
                               enabled: rightPageIdx == 22,
-                              child: Purchase(),
+                              child: PurchasePage(
+                                () {
+                                  setState(
+                                    () {
+                                      rightPageIdx = 23;
+                                      isMainMenu = false;
+                                    },
+                                  );
+                                },
+                                orderProvider.purchaseDate,
+                                () async {
+                                  DateTime picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: DateTime.now(),
+                                      // Refer step 1
+                                      firstDate: DateTime(2019),
+                                      lastDate: DateTime(2023),
+                                      initialEntryMode:
+                                          DatePickerEntryMode.calendar,
+                                      locale: Locale('en'),
+                                      helpText: "Select Date",
+                                      cancelText: 'Cancel',
+                                      confirmText: 'OK',
+                                      builder: (context, child) {
+                                        return Theme(
+                                          data: ThemeData.light().copyWith(
+                                            primaryColor: Colors.black54,
+                                            accentColor: Colors
+                                                .pinkAccent, //selection color
+                                          ),
+                                          child: child,
+                                        );
+                                      });
+                                  if (picked != null &&
+                                      picked != orderProvider.purchaseDate) {
+                                    if (picked.isAfter(DateTime.now())) {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text("Alert!"),
+                                            content: Text(
+                                              "Date selected must be earlier or as same as today.",
+                                            ),
+                                            actions: [
+                                              FlatButton(
+                                                child: Text('OK'),
+                                                onPressed: () {
+                                                  Navigator.pop(context, "OK");
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      setState(() {
+                                        orderProvider
+                                            .selectPurchaseDate(picked);
+                                      });
+                                    }
+                                  }
+                                },
+                              ),
                             ),
                           ),
 
@@ -1847,7 +2077,7 @@ class MainPageState extends State<MainPage> {
                             offstage: rightPageIdx != 18,
                             child: TickerMode(
                               enabled: rightPageIdx == 18,
-                              child: OrderPage(
+                              child: OrderSpec(
                                 (order, _useCash, _promotion) {
                                   _printReceiptOnOrderPage(
                                       order, _useCash, _promotion);
@@ -2006,8 +2236,8 @@ class MainPageState extends State<MainPage> {
                                     rightPageIdx = 0;
                                     isMainMenu = true;
                                   });
-                                  await orderProvider
-                                      .refresh(Map.from(base64EncodedImages));
+                                  await orderProvider.saveOrderData(
+                                      Map.from(base64EncodedImages));
                                 },
                                 () {
                                   setState(() {
@@ -2029,6 +2259,22 @@ class MainPageState extends State<MainPage> {
                                 willUseCash,
                                 cashGet,
                                 promotion,
+                              ),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 23,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 23,
+                              child: PurchaseHistory(),
+                            ),
+                          ),
+                          Offstage(
+                            offstage: rightPageIdx != 24,
+                            child: TickerMode(
+                              enabled: rightPageIdx == 24,
+                              child: PurchaseSpec(
+                                renderIdx: purchaseRenderIdx,
                               ),
                             ),
                           ),
@@ -2054,7 +2300,7 @@ class MainPageState extends State<MainPage> {
                               child: Center(
                                 child: Consumer<OrderProvider>(
                                   builder: (context, provider, _) => Text(
-                                    "SUB TOTAL \$${provider.price}0",
+                                    "SUB TOTAL \$${oCcy.format(provider.price)}",
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 18.0,
@@ -2074,8 +2320,45 @@ class MainPageState extends State<MainPage> {
                             onPressed: () {
                               if (orderProvider.purchaseTotalPrice != 0.0) {
                                 orderProvider.modifyBalance(
-                                    orderProvider.purchaseTotalPrice, false);
+                                  orderProvider.purchaseTotalPrice,
+                                  false,
+                                );
+                                double totalPrice = 0.0;
+                                final _purchaseItemNames = orderProvider
+                                    .purchaseBasket
+                                    .map((purchase) => purchase.itemName);
+                                final _purchaseItemPrices = orderProvider
+                                    .purchaseBasket
+                                    .map((purchase) {
+                                  totalPrice +=
+                                      purchase.price * purchase.itemCount;
+                                  return purchase.price;
+                                });
+                                final _purchaseItemCounts = orderProvider
+                                    .purchaseBasket
+                                    .map((purchase) => purchase.itemCount);
+
+                                orderProvider.addPurchase(
+                                  Purchase(
+                                      date: orderProvider.purchaseDate,
+                                      purchaseNo: orderProvider.purchaseNo,
+                                      itemNames: _purchaseItemNames.toList(),
+                                      prices: _purchaseItemPrices.toList(),
+                                      itemCounts: _purchaseItemCounts.toList(),
+                                      totalPrice: totalPrice,
+                                      showSpec: showPurchaseSpecSnapshot[
+                                              showPurchaseSpecSnapshotIdx++] =
+                                          (idx) {
+                                        setState(() {
+                                          rightPageIdx = 24;
+                                          isMainMenu = false;
+                                          purchaseRenderIdx = idx;
+                                        });
+                                      }),
+                                );
+                                orderProvider.savePurchaseData();
                                 orderProvider.clearPurchaseTotal();
+                                orderProvider.resetPurchaseDate();
                               }
                             },
                             backgroundColor:
@@ -2203,28 +2486,28 @@ class __OrderListState extends State<_OrderList> {
               child: Consumer<OrderProvider>(
                 builder: (context, provider, _) {
                   if (provider.didModifyDate) {
-                    if (provider.filteredOrder.isEmpty) {
+                    if (provider.filteredOrderList.isEmpty) {
                       return Text("There are no results.");
                     } else {
                       return ListView.builder(
-                        itemCount: provider.filteredOrder?.length ?? 0,
+                        itemCount: provider.filteredOrderList?.length ?? 0,
                         itemBuilder: (_context, index) {
-                          return provider.filteredOrder[index]
-                            ..tapBubblingEvent = () {
+                          return provider.filteredOrderList[index]
+                            ..indexDelegation = () {
                               return index;
                             };
                         },
                       );
                     }
                   } else {
-                    if (provider.orders.isEmpty) {
+                    if (provider.orderList.isEmpty) {
                       return Text("There are no results.");
                     } else {
                       return ListView.builder(
-                        itemCount: provider.orders?.length ?? 0,
+                        itemCount: provider.orderList?.length ?? 0,
                         itemBuilder: (_context, index) {
-                          return provider.orders[index]
-                            ..tapBubblingEvent = () {
+                          return provider.orderList[index]
+                            ..indexDelegation = () {
                               return index;
                             };
                         },
@@ -2244,7 +2527,7 @@ class __OrderListState extends State<_OrderList> {
               ),
             ),
             onPressed: () {
-              orderProvider.exportAsPdf();
+              orderProvider.exportOrdersAsPdf();
             },
           ),
         )
@@ -2254,20 +2537,18 @@ class __OrderListState extends State<_OrderList> {
 }
 
 class Order extends StatelessWidget {
-  final Function callback;
-  Function tapBubblingEvent;
+  final Function showSpec;
+  Function indexDelegation;
 
   final DateTime date;
-
-  // date, title, price, itemCount
   final List itemList;
-  final totalPrice;
+  final double totalPrice;
   final orderNo;
   bool cash = false;
   final double cashGet;
   final bool promotion;
 
-  Order(this.callback,
+  Order(this.showSpec,
       {this.date,
       this.itemList,
       this.totalPrice,
@@ -2293,7 +2574,7 @@ class Order extends StatelessWidget {
           child: MaterialButton(
             padding: EdgeInsets.all(0),
             onPressed: () {
-              callback(tapBubblingEvent());
+              showSpec(indexDelegation());
             },
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -2310,7 +2591,7 @@ class Order extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "\$$totalPrice",
+                      "\$${oCcy.format(totalPrice)}",
                       style: TextStyle(
                         color: Colors.black,
                       ),
@@ -2559,16 +2840,25 @@ class _StorePage extends StatelessWidget {
   }
 }
 
-class Purchase extends StatefulWidget {
+class PurchasePage extends StatefulWidget {
+  final callback;
+  final purchaseDate;
+  final datePick;
+
+  PurchasePage(this.callback, this.purchaseDate, this.datePick);
+
   @override
-  _PurchaseState createState() => _PurchaseState();
+  _PurchasePageState createState() => _PurchasePageState();
 }
 
-class _PurchaseState extends State<Purchase> {
-  DateTime initDate = DateTime.now();
-
+class _PurchasePageState extends State<PurchasePage> {
   String itemName = '';
   double price = 0.0;
+  int itemCount = 0;
+
+  final itemNameController = TextEditingController();
+  final itemPriceController = TextEditingController();
+  final itemCountController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -2590,10 +2880,12 @@ class _PurchaseState extends State<Purchase> {
                             padding: EdgeInsets.only(
                               left: 10,
                             ),
-                            child: Text(
-                              "Date: ${initDate.toString().split(' ')[0]}",
-                              style: TextStyle(
-                                fontSize: 15,
+                            child: Consumer<OrderProvider>(
+                              builder: (context, provider, _) => Text(
+                                "Date: ${provider.purchaseDate.toString().split(' ')[0]}",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                ),
                               ),
                             ),
                           ),
@@ -2601,57 +2893,7 @@ class _PurchaseState extends State<Purchase> {
                             icon: Icon(
                               Icons.date_range,
                             ),
-                            onPressed: () async {
-                              DateTime picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: DateTime.now(),
-                                  // Refer step 1
-                                  firstDate: DateTime(2019),
-                                  lastDate: DateTime(2023),
-                                  initialEntryMode:
-                                      DatePickerEntryMode.calendar,
-                                  locale: Locale('en'),
-                                  helpText: "Select Date",
-                                  cancelText: 'Cancel',
-                                  confirmText: 'OK',
-                                  builder: (context, child) {
-                                    return Theme(
-                                      data: ThemeData.light().copyWith(
-                                        primaryColor: Colors.black54,
-                                        accentColor:
-                                            Colors.pinkAccent, //selection color
-                                      ),
-                                      child: child,
-                                    );
-                                  });
-                              if (picked != null && picked != initDate) {
-                                if (picked.isAfter(DateTime.now())) {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text("Alert!"),
-                                        content: Text(
-                                          "Date selected must be earlier or as same as today.",
-                                        ),
-                                        actions: [
-                                          FlatButton(
-                                            child: Text('OK'),
-                                            onPressed: () {
-                                              Navigator.pop(context, "OK");
-                                            },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                } else {
-                                  setState(() {
-                                    initDate = picked;
-                                  });
-                                }
-                              }
-                            },
+                            onPressed: widget.datePick,
                           ),
                         ],
                       ),
@@ -2669,6 +2911,7 @@ class _PurchaseState extends State<Purchase> {
                                         onChanged: (_itemName) {
                                           itemName = _itemName;
                                         },
+                                        controller: itemNameController,
                                         autofocus: true,
                                         decoration: InputDecoration(
                                           labelText: 'Item Name',
@@ -2679,9 +2922,21 @@ class _PurchaseState extends State<Purchase> {
                                         onChanged: (_price) {
                                           price = double.parse(_price);
                                         },
+                                        controller: itemPriceController,
                                         autofocus: true,
                                         decoration: InputDecoration(
                                           labelText: 'Item Price',
+                                        ),
+                                      ),
+                                      TextField(
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (_cnt) {
+                                          itemCount = int.parse(_cnt);
+                                        },
+                                        controller: itemCountController,
+                                        autofocus: true,
+                                        decoration: InputDecoration(
+                                          labelText: 'Item Count',
                                         ),
                                       ),
                                     ],
@@ -2696,21 +2951,52 @@ class _PurchaseState extends State<Purchase> {
                                   ],
                                 );
                               }).then((_) {
-                            orderProvider.addPurchase(ItemInPurchase(
-                              (idx) {
-                                orderProvider.modifyPurchaseTotal(
-                                    orderProvider.purchaseList
-                                        .elementAt(idx)
-                                        .price,
-                                    false);
-                                orderProvider.removePurchase(idx);
-                              },
-                              itemName: itemName,
-                              price: price,
-                            ));
-                            orderProvider.modifyPurchaseTotal(price, true);
+                                final _itemName = itemNameController.text;
+                                final _price = itemPriceController.text;
+                                final _itemCount = itemCountController.text;
+                                if(_itemName != '' && _price != '' && _itemCount != '') {
+                                  orderProvider.addPurchaseItem(PurchaseItem(
+                                        (idx) {
+                                      orderProvider.modifyPurchaseTotal(
+                                          orderProvider.purchaseBasket
+                                              .elementAt(idx)
+                                              .price,
+                                          false);
+                                      orderProvider.removePurchaseItem(idx);
+                                    },
+                                    itemName: itemName,
+                                    price: price,
+                                    itemCount: itemCount,
+                                    subTotalPrice: price * itemCount,
+                                  ));
+                                  orderProvider.modifyPurchaseTotal(
+                                      price * itemCount, true);
+                                } else {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('Alert!'),
+                                        content: Text(
+                                            "Please fill out the form."),
+                                        actions: [
+                                          FlatButton(
+                                            child: Text('OK'),
+                                            onPressed: () {
+                                              Navigator.pop(context, "OK");
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                }
                           });
                         },
+                      ),
+                      TextButton(
+                        child: Text("View History"),
+                        onPressed: widget.callback,
                       )
                     ],
                   ),
@@ -2726,12 +3012,12 @@ class _PurchaseState extends State<Purchase> {
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          return provider.purchaseList[index]
+                          return provider.purchaseBasket[index]
                             ..idx = () {
                               return index;
                             };
                         },
-                        childCount: provider.purchaseList.length,
+                        childCount: provider.purchaseBasket.length,
                       ),
                     );
                   },
@@ -2755,7 +3041,7 @@ class _PurchaseState extends State<Purchase> {
                         ),
                         children: [
                           TextSpan(
-                            text: "${provider.purchaseTotalPrice}0",
+                            text: "${oCcy.format(provider.purchaseTotalPrice)}",
                             style: TextStyle(
                               fontSize: 25.0,
                               color: Colors.black,
@@ -2775,13 +3061,195 @@ class _PurchaseState extends State<Purchase> {
   }
 }
 
-class ItemInPurchase extends StatelessWidget {
+class Purchase extends StatelessWidget {
+  final showSpec;
+  final DateTime date;
+  final int purchaseNo;
+  final totalPrice;
+  final List<double> prices;
+  final List<String> itemNames;
+  final List<int> itemCounts;
+  Function indexDelegation;
+
+  Purchase(
+      {this.date,
+      this.purchaseNo,
+      this.prices,
+      this.itemNames,
+      this.itemCounts,
+      this.totalPrice,
+      this.showSpec});
+
+  _parseDate() {
+    final hour = date.hour > 12 ? date.hour - 12 : date.hour;
+    final hourString = hour < 10 ? "0$hour" : hour;
+    final minute = date.minute < 10 ? "0${date.minute}" : date.minute;
+
+    return "${date.toString().split(" ")[0]} $hourString:$minute${date.hour < 13 ? "AM" : "PM"}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(minHeight: 80.0),
+          child: MaterialButton(
+            padding: EdgeInsets.all(0),
+            onPressed: () {
+              showSpec(indexDelegation());
+            },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("#$purchaseNo"),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _parseDate(),
+                      style: TextStyle(
+                        color: Colors.black54,
+                      ),
+                    ),
+                    Text(
+                      "\$${oCcy.format(totalPrice)}",
+                      style: TextStyle(
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        Divider(
+          color: Colors.black54,
+        ),
+      ],
+    );
+  }
+}
+
+class PurchaseHistory extends StatelessWidget {
+  final List<String> month = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  _parseDate(date) {
+    return "${month[date.month - 1]} ${date.day}, ${date.year}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(
+            top: 10.0,
+            bottom: 10.0,
+            left: 10.0,
+          ),
+          child: Consumer<OrderProvider>(
+            builder: (context, provider, _) => Text(
+                "${_parseDate(provider.startDatePickedInPurchaseList)} ~ ${_parseDate(provider.endDatePickedInPurchaseList)}"),
+          ),
+        ),
+        Expanded(
+          flex: 11,
+          child: Container(
+            width: MediaQuery.of(context).size.width,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey,
+                  offset: Offset(0.0, 1.0), //(x,y)
+                  blurRadius: 1.0,
+                )
+              ],
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 10.0,
+              ),
+              child: Consumer<OrderProvider>(
+                builder: (context, provider, _) {
+                  if (provider.didModifyDateInPurchaseList) {
+                    if (provider.filteredPurchaseList.isEmpty) {
+                      return Text("There are no results.");
+                    } else {
+                      return ListView.builder(
+                        itemCount: provider.filteredPurchaseList?.length ?? 0,
+                        itemBuilder: (_context, index) {
+                          return provider.filteredPurchaseList[index]
+                            ..indexDelegation = () {
+                              return index;
+                            };
+                        },
+                      );
+                    }
+                  } else {
+                    if (provider.purchaseList.isEmpty) {
+                      return Text("There are no results.");
+                    } else {
+                      return ListView.builder(
+                        itemCount: provider.purchaseList?.length ?? 0,
+                        itemBuilder: (_context, index) {
+                          return provider.purchaseList[index]
+                            ..indexDelegation = () {
+                              return index;
+                            };
+                        },
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: MaterialButton(
+            child: Center(
+              child: Text(
+                "Export purchases",
+              ),
+            ),
+            onPressed: () {
+              orderProvider.exportPurchasesAsPdf();
+            },
+          ),
+        )
+      ],
+    );
+  }
+}
+
+class PurchaseItem extends StatelessWidget {
   final Function callback;
   final String itemName;
   final double price;
+  final int itemCount;
+  final double subTotalPrice;
   Function idx;
 
-  ItemInPurchase(this.callback, {this.itemName, this.price});
+  PurchaseItem(this.callback,
+      {this.itemName, this.price, this.itemCount, this.subTotalPrice});
 
   @override
   Widget build(BuildContext context) {
@@ -2816,12 +3284,37 @@ class ItemInPurchase extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  "\$${price}0",
-                  style: TextStyle(
-                    fontSize: 15,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text.rich(
+                    TextSpan(
+                      text: "\$${oCcy.format(price)}",
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: " * ",
+                          style: TextStyle(
+                            fontSize: 15,
+                          ),
+                        ),
+                        TextSpan(
+                          text: "$itemCount",
+                          style: TextStyle(
+                            fontSize: 15,
+                          ),
+                        ),
+                        TextSpan(
+                          text: " = \$${oCcy.format(subTotalPrice)}",
+                          style: TextStyle(
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                )
               ],
             ),
           ),
@@ -2896,7 +3389,7 @@ class ItemList extends StatelessWidget {
                                 height: 8.0,
                               ),
                               Text(
-                                "\$$price",
+                                "\$${oCcy.format(price)}",
                               ),
                               SizedBox(
                                 height: 8.0,
@@ -3085,9 +3578,9 @@ class Receipt extends StatelessWidget {
                                 Text(
                                   orderProvider.itemList.elementAt(index).title,
                                 ),
-                                Text("\$${price}0"),
+                                Text("\$${oCcy.format(price)}"),
                                 Text(itemCount.toString()),
-                                Text("\$${subTotalPrice.toString()}0"),
+                                Text("\$${oCcy.format(subTotalPrice)}"),
                               ],
                             );
                           },
@@ -3101,7 +3594,7 @@ class Receipt extends StatelessWidget {
                             Text(
                               "Subtotal",
                             ),
-                            Text("\$${orderProvider.price}0"),
+                            Text("\$${oCcy.format(orderProvider.price)}"),
                           ],
                         ),
                         Row(
@@ -3110,7 +3603,7 @@ class Receipt extends StatelessWidget {
                             Text(
                               "Net Amount",
                             ),
-                            Text("\$${orderProvider.price * 0.9}0"),
+                            Text("\$${oCcy.format(orderProvider.price * 0.9)}"),
                           ],
                         ),
                         Row(
@@ -3119,7 +3612,7 @@ class Receipt extends StatelessWidget {
                             Text(
                               "Tax",
                             ),
-                            Text("\$${orderProvider.price * 0.1}0"),
+                            Text("\$${oCcy.format(orderProvider.price * 0.1)}"),
                           ],
                         ),
                         divider,
@@ -3147,7 +3640,7 @@ class Receipt extends StatelessWidget {
                               "Total",
                             ),
                             Text(
-                              "\$${promotion ? orderProvider.price - 20 : orderProvider.price}0",
+                              "\$${oCcy.format(promotion ? orderProvider.price - 20 : orderProvider.price)}",
                             ),
                           ],
                         ),
@@ -3162,7 +3655,7 @@ class Receipt extends StatelessWidget {
                                       Text(
                                         "Cash :",
                                       ),
-                                      Text("\$${cashGet.toString()}0"),
+                                      Text("\$${oCcy.format(cashGet)}"),
                                     ],
                                   ),
                                   Row(
@@ -3173,7 +3666,7 @@ class Receipt extends StatelessWidget {
                                         "Charge due:",
                                       ),
                                       Text(
-                                        "${promotion ? "\$${-(orderProvider.price - cashGet - 20) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0)}0" : "\$${cashGet - orderProvider.price}0"}",
+                                        "${promotion ? "\$${oCcy.format(-(orderProvider.price - cashGet - 20.0) == -0 ? 0.0 : -(orderProvider.price - cashGet - 20.0))}" : "\$${oCcy.format(cashGet - orderProvider.price)}"}",
                                       ),
                                     ],
                                   ),

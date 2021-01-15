@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_app/main_page.dart';
 
 class PaymentResult extends StatelessWidget {
   final callback;
@@ -36,8 +37,8 @@ class PaymentResult extends StatelessWidget {
                 willUseCash
                     ? Text(
                         promotion
-                            ? "\$${-(price - cashGet - 20) == -0 ? 0.0 : -(price - cashGet - 20.0)}0"
-                            : "\$${cashGet - price}0",
+                            ? "\$${oCcy.format(-(price - cashGet - 20) == -0 ? 0.0 : -(price - cashGet - 20.0))}"
+                            : "\$${oCcy.format(cashGet - price)}",
                         style: TextStyle(fontSize: 45.0),
                       )
                     : Text(
@@ -45,7 +46,7 @@ class PaymentResult extends StatelessWidget {
                         style: TextStyle(fontSize: 45.0),
                       ),
                 Text(
-                  "Total \$${price}0",
+                  "Total \$${oCcy.format(price)}",
                   style: TextStyle(fontSize: 15.0),
                 ),
                 SizedBox(
@@ -55,7 +56,7 @@ class PaymentResult extends StatelessWidget {
                     ? Column(
                         children: [
                           Text(
-                            "We got \$${cashGet}0 for cash.",
+                            "We got \$${oCcy.format(cashGet)} for cash.",
                             style: TextStyle(fontSize: 15.0),
                           ),
                           SizedBox(
@@ -242,7 +243,7 @@ class PaymentResult extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          "\$${promotion ? price - 20.0 : price}0",
+                          "\$${oCcy.format(promotion ? price - 20.0 : price)}",
                           style: TextStyle(
                             fontSize: 18.0,
                             letterSpacing: -1.0,

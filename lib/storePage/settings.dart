@@ -223,7 +223,7 @@ class _SettingsState extends State<Settings> {
                                       FlatButton(
                                         child: Text('OK'),
                                         onPressed: () {
-                                          orderProvider.deleteAndReset();
+                                          orderProvider.resetAll();
                                           widget.resetAll();
                                           Phoenix.rebirth(context);
                                         },

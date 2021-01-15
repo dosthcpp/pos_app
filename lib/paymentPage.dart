@@ -28,7 +28,7 @@ class PaymentPage extends StatelessWidget {
               ),
             ),
             Text(
-              "\$${price}0",
+              "\$${oCcy.format(price)}",
               style: TextStyle(fontSize: 45.0),
             ),
             Row(
