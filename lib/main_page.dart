@@ -106,9 +106,9 @@ class MainPageState extends State<MainPage> {
     _initShowPurchaseSpecSnapshot();
     orderProvider.loadOrderData(functionSnapshot);
     orderProvider.loadPurchaseData(showPurchaseSpecSnapshot);
+    orderProvider.loadBalance();
     initPlatformState();
     initTargets();
-    orderProvider.loadBalance();
     _showDialog();
   }
 
@@ -161,7 +161,7 @@ class MainPageState extends State<MainPage> {
       },
     ).then(
       (_) {
-        if (orderProvider.balance == 0.0) {
+        if (orderProvider.initialBalance == 0.0) {
           showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -1278,7 +1278,7 @@ class MainPageState extends State<MainPage> {
                                     Column(
                                       children: [
                                         Text(
-                                          "Order",
+                                          "Sales Amount",
                                           style: TextStyle(
                                             color: Colors.black54,
                                           ),
@@ -1309,7 +1309,7 @@ class MainPageState extends State<MainPage> {
                                     Column(
                                       children: [
                                         Text(
-                                          "Purchase",
+                                          "Today spent",
                                           style: TextStyle(
                                             color: Colors.black54,
                                           ),
