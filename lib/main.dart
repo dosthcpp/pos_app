@@ -797,7 +797,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       localizationsDelegates: [GlobalMaterialLocalizations.delegate],
       supportedLocales: [Locale('en'), Locale('kr')],
-      initialRoute: MainPage.id,
+      initialRoute: StartingPage.id,
       routes: {
         StartingPage.id: (context) => StartingPage(),
         MainPage.id: (context) => MainPage(),
