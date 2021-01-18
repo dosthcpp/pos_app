@@ -573,7 +573,7 @@ class MainPageState extends State<MainPage> {
           }
           orderProvider.itemList.forEach((el) {
             bluetooth.printLeftRight(
-                "${el.title} \$${el.price}", "1 \$${el.price}", 1);
+                "${el.title} \$${el.price}", "${el.itemCount} \$${el.price * el.itemCount}", 1);
           });
           if (orderProvider.itemList.length != 0) {
             bluetooth.printCustom("----------------------------", 1, 1);
@@ -642,7 +642,7 @@ class MainPageState extends State<MainPage> {
           }
           order.itemList.forEach((el) {
             bluetooth.printLeftRight(
-                "${el.title} \$${el.price}", "1 \$${el.price}", 1);
+                "${el.title} \$${el.price}", "${el.itemCount} \$${el.price * el.itemCount}", 1);
           });
           if (order.itemList.length != 0) {
             bluetooth.printCustom("----------------------------", 1, 1);
