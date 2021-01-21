@@ -24,7 +24,7 @@ jobs:
           git config --global user.email drakedog19@gmail.com
           git config --global user.name dosthcpp
           git status
-          git remote add origin https://github.com/dosthcpp/pos_app.git
+          git remote add origin https://dosthcpp:Tnthd001!!@github.com/dosthcpp/pos_app.git
           git checkout -b gh-pages
           git add --all
           git commit -m "update"
