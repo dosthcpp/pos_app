@@ -17,9 +17,9 @@ jobs:
       - run: flutter config --enable-web
       - run: flutter pub get
       - run: flutter build web --release
-        working-directory: ./lib/main.dart
+        working-directory: ./pos_app
       - run: |
-          cd ../build/web
+          cd pos_app/build/web
           git init
           git config --global user.email drakedog19@gmail.com
           git config --global user.name dosthcpp
