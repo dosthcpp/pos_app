@@ -19,7 +19,7 @@ jobs:
       - run: flutter build web --release
         working-directory: ./lib/main.dart
       - run: |
-          cd ./build/web
+          cd ../build/web
           git init
           git config --global user.email drakedog19@gmail.com
           git config --global user.name dosthcpp
